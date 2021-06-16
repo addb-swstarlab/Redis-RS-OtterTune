@@ -4,8 +4,8 @@ from models.factor_analysis import FactorAnalysis
 from models.preprocessing import (get_shuffle_indices, consolidate_columnlabels)
 from models.lasso import LassoPath
 from models.xgboost import XGBR
-from models.util import DataUtil
 from models.rf import RFR
+from models.util import DataUtil
 
 from models.gp import GPRNP
 
@@ -16,9 +16,15 @@ from models.parameters import *
 
 import utils
 
-
-def run_workload_characterization(metric_data):
-    ##TODO: modift after workload generation.
+#Step 1
+def metricSimplification(metric_data, logger):
+    """
+    metric_data : (dict)
+    ----datas except target
+    ----columnlabels
+    ----rowlabels
+    """
+    ##TODO: modify after workload generation.
 
     matrix = metric_data['data']
     columnlabels = metric_data['columnlabels']
@@ -37,25 +43,27 @@ def run_workload_characterization(metric_data):
             nonconst_columnlabels.append(v)
     assert len(nonconst_matrix) > 0, "Need more data to train the model"
     nonconst_matrix = np.hstack(nonconst_matrix)
-    print("Workload characterization ~ nonconst data size: %s", nonconst_matrix.shape)
+    logger.info("Workload characterization ~ nonconst data size: %s", nonconst_matrix.shape)
 
     # Remove any duplicate columns
     unique_matrix, unique_idxs = np.unique(nonconst_matrix, axis=1, return_index=True)
     unique_columnlabels = [nonconst_columnlabels[idx] for idx in unique_idxs]
 
-    print("Workload characterization ~ final data size: %s", unique_matrix.shape)
+    logger.info("Workload characterization ~ final data size: %s", unique_matrix.shape)
     n_rows, n_cols = unique_matrix.shape
 
     # Shuffle the matrix rows
     shuffle_indices = get_shuffle_indices(n_rows)
     shuffled_matrix = unique_matrix[shuffle_indices, :]
 
+    #FactorAnalysis
     fa_model = FactorAnalysis()
     fa_model.fit(shuffled_matrix, unique_columnlabels, n_components=5)
-
     # Components: metrics * factors
     components = fa_model.components_.T.copy()
 
+
+    #KMeansClusters()
     kmeans_models = KMeansClusters()
     ##TODO: Check Those Options
     kmeans_models.fit(components, min_cluster=1,
@@ -67,7 +75,7 @@ def run_workload_characterization(metric_data):
     gapk = create_kselection_model("gap-statistic")
     gapk.fit(components, kmeans_models.cluster_map_)
 
-    print("Found optimal number of clusters: {}".format(gapk.optimal_num_clusters_))
+    logger.info("Found optimal number of clusters: {}".format(gapk.optimal_num_clusters_))
 
     # Get pruned metrics, cloest samples of each cluster center
     pruned_metrics = kmeans_models.cluster_map_[gapk.optimal_num_clusters_].get_closest_samples()

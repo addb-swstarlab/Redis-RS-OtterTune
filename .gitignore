@@ -178,3 +178,5 @@ Dockerfile
 .idea
 
 *.pyc
+
+/tuner/logs
