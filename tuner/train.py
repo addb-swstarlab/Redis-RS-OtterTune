@@ -6,59 +6,37 @@ Train the model
 import os
 import sys
 import utils
+import knobs
 import argparse
+from glob import glob
 sys.path.append('../')
 ##TODO: we can use environment after...
-import environment
 import copy
 
-from models.steps import (run_workload_characterization, run_knob_identification, configuration_recommendation)
-
-DATA_PATH = "../data/redis_data"
+from models.steps import (metricSimplification, run_knob_identification, configuration_recommendation)
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--tencent', action='store_true', help='Use Tencent Server')
     parser.add_argument('--params', type=str, default='', help='Load existing parameters')
-    parser.add_argument('--target', type=int, default= 1, help='Workload type')
-    # parser.add_argument('--instance', type=str, default='mysql', help='Choose MySQL Instance')
+    parser.add_argument('--target', type=int, default= 1, help='Target Workload')
     parser.add_argument('--persistence', type=str, choices=["RDB","AOF"], default='RDB', help='Choose Persistant Methods')
     parser.add_argument("--db",type=str, choices=["redis","rocksdb"], default='redis', help="DB type")
     parser.add_argument("--rki",type=str, default='lasso', help = "knob_identification mode")
     parser.add_argument("--gp", type=str, default="numpy")
-
+    
     opt = parser.parse_args()
-
+    DATA_PATH = "../data/redis_data"
     PATH=None
-
-    if not os.path.exists('logs'):
-        os.mkdir('logs')
-
-    # # Create Environment
-    # if opt.tencent:
-    #     env = environment.TencentServer(
-    #         wk_type=opt.workload,
-    #         instance_name=opt.instance,
-    #         method=opt.benchmark,
-    #         num_metric=opt.metric_num,
-    #         num_other_knobs=opt.other_knob)
-    # else:
-    #     env = environment.Server(wk_type=opt.workload, instance_name=opt.instance)
-
 
     if not os.path.exists('save_knobs'):
         os.mkdir('save_knobs')
 
     expr_name = 'train_{}'.format(utils.config_exist(opt.persistence))
 
-
     print("======================MAKE LOGGER at %s====================" % expr_name)
     ##TODO: save log
-    logger = utils.Logger(
-        name=opt.persistence,
-        log_file='logs/{}/{}.log'.format(opt.persistence, expr_name)
-    )
+    logger, log_dir = utils.get_logger(os.path.join('./logs'))
 
     #==============================Data PreProcessing Stage=================================
     # Read sample-metric matrix, need knob name(label)
@@ -66,90 +44,79 @@ if __name__ == '__main__':
         internal_metrics, external_metrics, knobs
         metric_data : internal metrics
         knobs_data : configuration knobs
-        ex. data = {'columnlabels'=array(['metrics_1', 'metrics_2', ...]),
-                    'rowlabels'=array([1, 2, ...]),
-                    'data'=array([[1,2,3,...], [2,3,4,...], ...[]])}
     '''
 
-    # if opt.workload == 'write':
-    #     internal_metrics_path = "../data/redis_data/results/WO_workload/result_internal_total.csv"
-    #     external_metrics_path = "../data/redis_data/results/WO_workload/result_external_total.csv"
-    # elif opt.workload == 'readwrite':
-    #     internal_metrics_path = "../data/redis_data/results/RW_workload/result_internal_total.csv"
-    #     external_metrics_path = "../data/redis_data/results/RW_workload/result_external_total.csv"
-    # else:
-    #     assert False, 'Choose workload write or readwrite'
-
-    internal_metrics_path = os.path.join(DATA_PATH ,"result" ,"{}workload/result_internal_total.csv".format(opt.target))
-    external_metrics_path = os.path.join(DATA_PATH ,"result" ,"{}workload/result_external_total.csv".format(opt.target))
-
-    logger.info("####################Target workload name is {}".format(opt.workload))
-
-    knobs_path = os.path.joint(DATA_PATH, "configs")
-
+    #Target workload loading
+    logger.info("Target workload name is {}".format(opt.target))
+    target_DATA_PATH = "../data/redis_data/workload{}".format(opt.target)
+    
+    knobs_path = os.path.join(DATA_PATH, "configs")
     if opt.persistence == "RDB":
-        knob_data, _ = utils.load_knobs(knobs_path)
+        knob_data, _ = knobs.load_knobs(knobs_path)
     elif opt.persistence == "AOF":
-        _, knob_data = utils.load_knobs(knobs_path)
+        _, knob_data = knobs.load_knobs(knobs_path)
 
-    logger.info("Fin Load Knob_data")
+    logger.info("Finish Load Knob Data")
 
-    # train_knob_data = {}
-    # test_knob_data = {}
-    # train_internal_data = {}
-    # test_internal_data = {}
-    # train_external_data = {}
-    # test_external_data = {}
-    
-    internal_metric_data, dict_le_in = utils.load_metrics(m_path = internal_metrics_path,
-                                                 labels = knob_data['rowlabels'],
-                                                 mode = 'internal')
+    internal_metric_datas = {}
+    external_metric_datas = {}
 
-    logger.info("Fin Load internal_metrics_data")
-
-    external_metric_data, _ = utils.load_metrics(m_path = external_metrics_path,
+    # len()-1 because of configs dir
+    for i in range(1,len(os.listdir(DATA_PATH))):
+        if opt.target == i:
+            target_external_data = knobs.load_metrics(metric_path = os.path.join(target_DATA_PATH ,f"result_{opt.persistence.lower()}_external_{i}.csv"),
                                                 labels = knob_data['rowlabels'],
-                                                metrics = ['Totals_Ops/sec'],
-                                                mode = 'external')
-    logger.info("Fin Load external_metrics_data")
+                                                metrics = ['Totals_Ops/sec', 'Totals_p99_Latency'])
+        else:
+            internal_metric_data, dict_le_in = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{i}',f'result_{opt.persistence.lower()}_internal_{i}.csv'),
+                                                            labels = knob_data['rowlabels'])
+            
+            external_metric_data, _ = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{i}',f'result_{opt.persistence.lower()}_external_{i}.csv'),
+                                                labels = knob_data['rowlabels'],
+                                                metrics = ['Totals_Ops/sec', 'Totals_p99_Latency'])
+            internal_metric_datas[f'workload{i}'] = internal_metric_data['data']
+            external_metric_datas[f'workload{i}'] = external_metric_data['data']
 
-    # train_knob_data['data'], test_knob_data['data'] = train_test_split(knob_data['data'],test_size=0.5,shuffle=True,random_state=1004)
-    # train_knob_data['rowlabels'], test_knob_data['rowlabels'] = train_test_split(knob_data['rowlabels'],test_size=0.5,shuffle=True,random_state=1004)
-    # train_knob_data['columnlabels'], test_knob_data['columnlabels'] = knob_data['columnlabels'], knob_data['columnlabels']
+    internal_metric_datas['columnlabels'] = internal_metric_data['columnlabels']
+    internal_metric_datas['rowlabels'] = internal_metric_data['rowlabels']
+    logger.info("Finish Load Internal and External Metrics Data")
 
-    # train_internal_data['data'], test_internal_data['data'] = train_test_split(internal_metric_data['data'],test_size=0.5,shuffle=True,random_state=1004)
-    # train_internal_data['rowlabels'], test_internal_data['rowlabels'] = train_test_split(internal_metric_data['rowlabels'],test_size=0.5,shuffle=True,random_state=1004)
-    # train_internal_data['columnlabels'], test_internal_data['columnlabels'] = internal_metric_data['columnlabels'], internal_metric_data['columnlabels']
-
-    # train_external_data['data'], test_external_data['data'] = train_test_split(external_metric_data['data'],test_size=0.5,shuffle=True,random_state=1004)
-    # train_external_data['rowlabels'], test_external_data['rowlabels'] = train_test_split(external_metric_data['rowlabels'],test_size=0.5,shuffle=True,random_state=1004)
-    # train_external_data['columnlabels'] = external_metric_data['columnlabels']
-    # test_external_data['columnlabels'] = external_metric_data['columnlabels']
-    # assert all(train_knob_data['rowlabels']==train_internal_data['rowlabels'])
-
-    # print(f'{opt.persistence} knob data = {len(knob_data)}, {knob_data.keys()}, {knob_data}')
-    # print(f'{opt.persistence} metric data = {len(metric_data)}, {metric_data.keys()}, {metric_data}')
-    
+    """
+    internal_metric_datas = {
+        'workload{2~18} except target(1)'=array([[1,2,3,...], [2,3,4,...], ...[]])
+        'columnlabels'=array(['IM_1', 'IM_2', ...]),
+        'rowlabels'=array([1, 2, ..., 10000])}
+    """
 
 
-    ### METRICS SIMPLIFICATION STAGE ###
+    aggregated_IM_data = knobs.aggregateInternalMetrics(internal_metric_datas)
+
+    """
+    aggregated_IM_data = {
+        'data'=array([[1,2,3,...], [2,3,4,...], ...[]])
+        'columnlabels'=array(['IM_1', 'IM_2', ...]),
+        'rowlabels'=array([1, 2, ..., 10000])}
+    data = concat((workload2,...,workload18)) length = 10000 * N of workload
+    """
+
     """
         For example,
             pruned_metrics : ['allocator_rss_bytes', 'rss_overhead_bytes', 'used_memory_dataset', 'rdb_last_cow_size']
     """
-    logger.info("\n\n====================== run_workload_characterization ====================")
-    pruned_metrics = run_workload_characterization(train_internal_data)
+    logger.info("====================== metricSimplification ====================")
+    pruned_metrics = metricSimplification(aggregated_IM_data, logger)
     logger.info("Done pruning metrics for workload {} (# of pruned metrics: {}).\n\n""Pruned metrics: {}\n".format(opt.persistence, len(pruned_metrics),pruned_metrics))
-    metric_idxs = [i for i, metric_name in enumerate(train_internal_data['columnlabels']) if metric_name in pruned_metrics]
+    metric_idxs = [i for i, metric_name in enumerate(aggregated_IM_data['columnlabels']) if metric_name in pruned_metrics]
     ranked_metric_data = {
-        'data' : train_internal_data['data'][:,metric_idxs],
-        'rowlabels' : copy.deepcopy(train_internal_data['rowlabels']),
-        'columnlabels' : [train_internal_data['columnlabels'][i] for i in metric_idxs]
+        'data' : aggregated_IM_data['data'][:,metric_idxs],
+        'rowlabels' : copy.deepcopy(aggregated_IM_data['rowlabels']),
+        'columnlabels' : [aggregated_IM_data['columnlabels'][i] for i in metric_idxs]
     }
+    print(len(ranked_metric_data['data']))
 
 
     ### KNOBS RANKING STAGE ###
-    rank_knob_data = copy.deepcopy(train_knob_data)
+    rank_knob_data = copy.deepcopy(knob_data)
     logger.info("\n\n====================== run_knob_identification ====================")
     logger.info("use mode = {}".format(opt.rki))
     ranked_knobs = run_knob_identification(knob_data = rank_knob_data,
