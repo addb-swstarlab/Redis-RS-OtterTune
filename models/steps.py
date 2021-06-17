@@ -1,11 +1,10 @@
 
-from models.cluster import KMeansClusters, create_kselection_model
+from models.cluster import GapStatistic, KMeansClusters, create_kselection_model
 from models.factor_analysis import FactorAnalysis
 from models.preprocessing import (get_shuffle_indices, consolidate_columnlabels)
-from models.lasso import LassoPath
-from models.xgboost import XGBR
-from models.rf import RFR
-from models.util import DataUtil
+from models.mean_shift import MeanShiftClustering
+
+from models.ranking import Ranking
 
 from models.gp import GPRNP
 
@@ -18,14 +17,6 @@ import utils
 
 #Step 1
 def metricSimplification(metric_data, logger):
-    """
-    metric_data : (dict)
-    ----datas except target
-    ----columnlabels
-    ----rowlabels
-    """
-    ##TODO: modify after workload generation.
-
     matrix = metric_data['data']
     columnlabels = metric_data['columnlabels']
 
@@ -63,13 +54,30 @@ def metricSimplification(metric_data, logger):
     components = fa_model.components_.T.copy()
 
 
-    #KMeansClusters()
-    kmeans_models = KMeansClusters()
-    ##TODO: Check Those Options
-    kmeans_models.fit(components, min_cluster=1,
-                      max_cluster=min(n_cols - 1, 20),
-                      sample_labels=unique_columnlabels,
-                      estimator_params={'n_init': 50})
+    # #KMeansClusters()
+    # kmeans_models = KMeansClusters()
+    # ##TODO: Check Those Options
+    # kmeans_models.fit(components, min_cluster=1,
+    #                   max_cluster=min(n_cols - 1, 20),
+    #                   sample_labels=unique_columnlabels,
+    #                   estimator_params={'n_init': 50})
+    model = MeanShiftClustering(components)
+    clusters = model.fit(components)
+    print(clusters)
+    for i in np.unique(clusters):
+        print(unique_columnlabels[list(clusters).index(i)])
+
+    from sklearn.mixture import GaussianMixture
+    gmm = GaussianMixture(n_components=2,random_state=0).fit(components)
+    gmm_cluster_labels = gmm.predict(components)
+    gmm_cluster ={}
+    for i,labels in enumerate(gmm_cluster_labels):
+        if gmm_cluster.get(labels):
+            gmm_cluster[labels].append(unique_columnlabels[i])
+        else:
+            gmm_cluster[labels] = [unique_columnlabels[i]]
+    print(gmm_cluster)
+    assert False
 
     # Compute optimal # clusters, k, using gap statistics
     gapk = create_kselection_model("gap-statistic")
@@ -83,9 +91,13 @@ def metricSimplification(metric_data, logger):
     return pruned_metrics
 
 
-def run_knob_identification(knob_data,metric_data,mode, logger):
-    # TODO: type filter for Redis, RocksDB 
-    
+def knobsRanking(knob_data, metric_data, mode, logger):
+    """
+    knob_data : will be ranked by knobs_ranking
+    metric_data : pruned metric_data by metric simplification
+    mode : selct knob_identification(like lasso, xgb, rf)
+    logger
+    """
     knob_matrix = knob_data['data']
     knob_columnlabels = knob_data['columnlabels']
 
@@ -105,113 +117,42 @@ def run_knob_identification(knob_data,metric_data,mode, logger):
     shuffled_knob_matrix = standardized_knob_matrix[shuffle_indices, :]
     shuffled_metric_matrix = standardized_metric_matrix[shuffle_indices, :]
 
-    if mode == 'lasso':
-    # run lasso algorithm
-        lasso_model = LassoPath()
-        lasso_model.fit(shuffled_knob_matrix, shuffled_metric_matrix, encoded_knob_columnlabels)        
-        encoded_knobs = lasso_model.get_ranked_features()
-    elif mode == "XGB":
-        xgb_model = XGBR()
-        xgb_model.fit(shuffled_knob_matrix, shuffled_metric_matrix,encoded_knob_columnlabels)
-        encoded_knobs = xgb_model.get_ranked_knobs()
-        feature_imp = xgb_model.get_ranked_importance()
-        logger.info('feature importance')
+    model = Ranking(mode)
+    model.fit(shuffled_knob_matrix,shuffled_metric_matrix,encoded_knob_columnlabels)
+    encoded_knobs = model.get_ranked_features()
+    feature_imp = model.get_ranked_importance()
+    if feature_imp is None:
+        pass
+    else:
+        logger.info('Feature importance')
         logger.info(feature_imp)
-    elif mode == "RF":
-        rf = RFR()
-        rf.fit(shuffled_knob_matrix,shuffled_metric_matrix,encoded_knob_columnlabels)
-        encoded_knobs = rf.get_ranked_features()
-        feature_imp = rf.get_ranked_importance()
-        logger.info('feature importance')
-        logger.info(feature_imp)
+
+    # if mode == 'lasso':
+    # # run lasso algorithm
+    #     lasso_model = LassoPath()
+    #     lasso_model.fit(shuffled_knob_matrix, shuffled_metric_matrix, encoded_knob_columnlabels)        
+    #     encoded_knobs = lasso_model.get_ranked_features()
+    # elif mode == "XGB":
+    #     xgb_model = XGBR()
+    #     xgb_model.fit(shuffled_knob_matrix, shuffled_metric_matrix, encoded_knob_columnlabels)
+    #     encoded_knobs = xgb_model.get_ranked_knobs()
+    #     feature_imp = xgb_model.get_ranked_importance()
+    #     logger.info('feature importance')
+    #     logger.info(feature_imp)
+    # elif mode == "RF":
+    #     rf = RFR()
+    #     rf.fit(shuffled_knob_matrix,shuffled_metric_matrix,encoded_knob_columnlabels)
+    #     encoded_knobs = rf.get_ranked_features()
+    #     feature_imp = rf.get_ranked_importance()
+    #     logger.info('feature importance')
+    #     logger.info(feature_imp)
 
     consolidated_knobs = consolidate_columnlabels(encoded_knobs)
 
     return consolidated_knobs
 
-def run_workload_mapping(knob_data, metric_data, target_knob, target_metric, params):
-    '''
-    Args:
-        knob_data: train knob data
-        metric_data: train metric data
-        target_knob: target knob data
-        target_metric: target metric data
-    '''
-    #knob_data["data"],knob_data["columnlabels"] = DataUtil.clean_knob_data(knob_data["data"],knob_data["columnlabels"])
-
-    ##TODO: Will change dict to something
-    X_matrix = np.array(knob_data["data"])
-    y_matrix = np.array(metric_data["data"])
-    #rowlabels to np.arange(X_matrix.shape[0])
-    rowlabels = np.array(knob_data["rowlabels"])
-    assert np.array_equal(rowlabels, metric_data["rowlabels"])
-
-    X_matrix, y_matrix, rowlabels = DataUtil.combine_duplicate_rows(
-            X_matrix, y_matrix, rowlabels)
-
-    # If we have multiple workloads and use them to train,
-    # Workload mapping should be called (not implemented yet) and afterward,
-    # Mapped workload will be stored in workload_data.
-    workload_data = {}
-    unique_workload = 'UNIQUE'
-    workload_data[unique_workload] = {
-            'X_matrix': X_matrix,
-            'y_matrix': y_matrix,
-            'rowlabels': rowlabels,
-    }
-
-    if len(workload_data) == 0:
-        # The background task that aggregates the data has not finished running yet
-        target_data.update(mapped_workload=None, scores=None)
-        print('%s: Result = %s\n', task_name, _task_result_tostring(target_data))
-        print('%s: Skipping workload mapping because no different workload is available.',task_name)
-        return target_data, algorithm
-
-    Xs = np.vstack([entry['X_matrix'] for entry in list(workload_data.values())])
-    ys = np.vstack([entry['y_matrix'] for entry in list(workload_data.values())])
-
-    # Scale the X & y values, then compute the deciles for each column in y
-    X_scaler = StandardScaler(copy=False)
-    X_scaler.fit(Xs)
-    y_scaler = StandardScaler(copy=False)
-    y_scaler.fit_transform(ys)
-    y_binner = Bin(bin_start=1, axis=0)
-    y_binner.fit(ys)
-    del Xs
-    del ys
-
-    X_target = target_data['X_matrix']
-    # Filter the target's y data by the pruned metrics.
-    y_target = target_data['y_matrix'][:, pruned_metric_idxs]
-
-    # Now standardize the target's data and bin it by the deciles we just
-    # calculated
-    X_target = X_scaler.transform(X_target)
-    y_target = y_scaler.transform(y_target)
-    y_target = y_binner.transform(y_target)
-
-    predictions = np.empty_like(y_target)
-    X_workload = workload_data['X_matrix']
-    X_scaled = X_scaler.transform(X_workload)
-    y_workload = workload_data['y_matrix']
-    y_scaled = y_scaler.transform(y_workload)
-    for j, y_col in enumerate(y_scaled.T):
-        y_col = y_col.reshape(-1, 1)
-        model = GPRNP(length_scale=params['GPR_LENGTH_SCALE'],
-                        magnitude=params['GPR_MAGNITUDE'],
-                        max_train_size=params['GPR_MAX_TRAIN_SIZE'],
-                        batch_size=params['GPR_BATCH_SIZE'])
-        model.fit(X_scaled, y_col, ridge=params['GPR_RIDGE'])
-        gpr_result = model.predict(X_target)
-        predictions[:, j] = gpr_result.ypreds.ravel()
-    # Bin each of the predicted metric columns by deciles and then
-    # compute the score (i.e., distance) between the target workload and each of the known workloads
-    predictions = y_binner.transform(predictions)
-    dists = np.sqrt(np.sum(np.square(
-                np.subtract(predictions, y_target)), axis=1))
-    scores[workload_id] = np.mean(dists)
-
-    # TODO: return minimum dist workload
+def memtier_parsing(*args):
+    pass
 
 
 def configuration_recommendation(target_knob, target_metric, logger, gp_type='numpy', db_type='redis', data_type='RDB'):

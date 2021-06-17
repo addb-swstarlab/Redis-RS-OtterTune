@@ -42,6 +42,7 @@ def knobs_make_dict(knobs_path):
                         data = ["no","yes"].index(data)
                     elif data in ["always","everysec","no"]:
                         data = ["always","everysec","no"].index(data)
+                    #maxmemory-policy
                     elif data in ["volatile-lru","allkeys-lru","volatile-lfu","allkeys-lfu","volatile-random","allkeys-random","volatile-ttl","noeviction"]:
                         data = ["volatile-lru","allkeys-lru","volatile-lfu","allkeys-lfu","volatile-random","allkeys-random","volatile-ttl","noeviction"].index(data)
                 elif data.endswith("mb") or data.endswith("gb"):
@@ -104,6 +105,9 @@ def knobs_make_dict(knobs_path):
 
 
 def aggregateInternalMetrics(internal_metric_datas):
+    """
+    Aggregate Internal Metrics from workloads in key 'data'.
+    """
     aggregated_IM_data = {}
     for workload in internal_metric_datas.keys():
         if workload.startswith('workload'):
@@ -156,7 +160,6 @@ def metrics_make_dict(pd_metrics, labels):
 def load_metrics(metric_path = ' ', labels = [], metrics=None):
     """ 
     If metrics is None, it means internal metrics.
-    We may change external because of using two metric.
     """
     if metrics is None:
         pd_metrics = pd.read_csv(metric_path)
