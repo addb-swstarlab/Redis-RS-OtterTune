@@ -5,6 +5,8 @@ Train the model
 
 import os
 import sys
+import json
+
 import utils
 import knobs
 import argparse
@@ -14,16 +16,19 @@ sys.path.append('../')
 import copy
 
 from models.steps import (metricSimplification, knobsRanking, configuration_recommendation)
+from models.redisDataset import RedisDataset
+from sklearn.model_selection import train_test_split
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--tencent', action='store_true', help='Use Tencent Server')
     parser.add_argument('--params', type=str, default='', help='Load existing parameters')
-    parser.add_argument('--target', type=int, default= 20, help='Target Workload')
+    parser.add_argument('--target', type=int, default= 1, help='Target Workload')
     parser.add_argument('--persistence', type=str, choices=["RDB","AOF"], default='RDB', help='Choose Persistant Methods')
     parser.add_argument("--db",type=str, choices=["redis","rocksdb"], default='redis', help="DB type")
     parser.add_argument("--rki",type=str, default='lasso', help = "knob_identification mode")
     parser.add_argument("--gp", type=str, default="numpy")
+    parser.add_argument("--topk",type=int, default=4, help = "Top # knobs")
     
     opt = parser.parse_args()
     DATA_PATH = "../data/redis_data"
@@ -47,6 +52,9 @@ if __name__ == '__main__':
     #Target workload loading
     logger.info("Target workload name is {}".format(opt.target))
     target_DATA_PATH = "../data/redis_data/workload{}".format(opt.target)
+
+    with open("../data/workloads_info.json",'r') as f:
+        workload_info = json.load(f)
     
     knobs_path = os.path.join(DATA_PATH, "configs")
     if opt.persistence == "RDB":
@@ -78,6 +86,7 @@ if __name__ == '__main__':
 
     internal_metric_datas['columnlabels'] = internal_metric_data['columnlabels']
     internal_metric_datas['rowlabels'] = internal_metric_data['rowlabels']
+    external_metric_datas['columnlabels'] = ['Totals_Ops/sec', 'Totals_p99_Latency']
     logger.info("Finish Load Internal and External Metrics Data")
 
     """
@@ -91,7 +100,8 @@ if __name__ == '__main__':
         'rowlabels'=array([1, 2, ..., 10000])}
     """
 
-    aggregated_IM_data = knobs.aggregateInternalMetrics(internal_metric_datas)
+    aggregated_IM_data = knobs.aggregateMetrics(internal_metric_datas)
+    aggregated_EM_data = knobs.aggregateMetrics(external_metric_datas)
 
     """
     data = concat((workload2,...,workload18)) length = 10000 * N of workload
@@ -129,34 +139,44 @@ if __name__ == '__main__':
     logger.info("Done ranking knobs for workload {} (# ranked knobs: {}).\n\n"
                  "Ranked knobs: {}\n".format(opt.persistence, len(ranked_knobs), ranked_knobs))
 
-    assert False
-    ### WORKLOAD MAPPING ###
-    ## TODO: ...                 
+    top_k = opt.topk
+    top_k_knobs = utils.get_ranked_knob_data(ranked_knobs, knob_data, top_k)
+    new_knob_data = knobs.add_workloadInfo(top_k_knobs,workload_info,1)
+
+    X_train, X_val, y_train, y_val = train_test_split(top_k_knobs['data'],aggregated_EM_data['data'],test_size = 0.33, random_state=42)
+    
+    trainDataset = RedisDataset(X_train,y_train)
+    valDataset = RedisDataset(X_val,y_val)
+    
 
 
 
-    ### RECOMMENDATION STAGE ###
-    ##TODO: choose k like incremental 4, 8, 16, ...
-    top_ks = range(4,13)
-    best_recommend = -float('inf')
-    best_topk = None
-    best_conf_map = None
-    for top_k in top_ks:        
-        logger.info("\n\n================ The number of TOP knobs ===============")
-        logger.info(top_k)
+    
 
-        ranked_test_knob_data = utils.get_ranked_knob_data(ranked_knobs, test_knob_data, top_k)
+
+
+    # ### RECOMMENDATION STAGE ###
+    # ##TODO: choose k like incremental 4, 8, 16, ...
+    # top_ks = range(4,13)
+    # best_recommend = -float('inf')
+    # best_topk = None
+    # best_conf_map = None
+    # for top_k in top_ks:        
+    #     logger.info("\n\n================ The number of TOP knobs ===============")
+    #     logger.info(top_k)
+
+    #     ranked_test_knob_data = utils.get_ranked_knob_data(ranked_knobs, test_knob_data, top_k)
         
-        ## TODO: params(GP option) and will offer opt all
-        FIN,recommend,conf_map = configuration_recommendation(ranked_test_knob_data,test_external_data, logger, opt.gp, opt.db, opt.persistence)
+    #     ## TODO: params(GP option) and will offer opt all
+    #     FIN,recommend,conf_map = configuration_recommendation(ranked_test_knob_data,test_external_data, logger, opt.gp, opt.db, opt.persistence)
 
-        if recommend > best_recommend and FIN:
-            best_recommend = recommend
-            best_topk = top_k
-            best_conf_map = conf_map
-    logger.info("Best top_k")
-    logger.info(best_topk)
-    print(best_topk)
-    utils.convert_dict_to_conf(best_conf_map, opt.persistence)
+    #     if recommend > best_recommend and FIN:
+    #         best_recommend = recommend
+    #         best_topk = top_k
+    #         best_conf_map = conf_map
+    # logger.info("Best top_k")
+    # logger.info(best_topk)
+    # print(best_topk)
+    # utils.convert_dict_to_conf(best_conf_map, opt.persistence)
 
-    print("END TRAIN")
+    # print("END TRAIN")

@@ -103,21 +103,31 @@ def knobs_make_dict(knobs_path):
     dict_AOF['columnlabels'] = np.array(AOF_columns[0])
     return dict_RDB, dict_AOF
 
+def add_workloadInfo(knob_data,workload_info,target_info):
+    new_knob_data = {'data': [],"columnlabels" : knob_data['columnlabels'], "rowlabels" : knob_data['rowlabels']}
+    for workload in range(1,len(workload_info.keys())):
+        if target_info == workload:
+            continue
+        for data in knob_data['data']:
+            new_knob_data['data'].append((data,workload_info[str(workload)]))
+    new_knob_data['data'] = np.array(new_knob_data['data'])
+    return new_knob_data
 
-def aggregateInternalMetrics(internal_metric_datas):
+
+def aggregateMetrics(metric_datas):
     """
     Aggregate Internal Metrics from workloads in key 'data'.
     """
-    aggregated_IM_data = {}
-    for workload in internal_metric_datas.keys():
+    aggregated_data = {}
+    for workload in metric_datas.keys():
         if workload.startswith('workload'):
-            if not (aggregated_IM_data.get('data') is None):
-                aggregated_IM_data['data'] = np.concatenate((aggregated_IM_data['data'],internal_metric_datas[workload]))
+            if not (aggregated_data.get('data') is None):
+                aggregated_data['data'] = np.concatenate((aggregated_data['data'],metric_datas[workload]))
             else:
-                aggregated_IM_data['data'] = internal_metric_datas[workload]
+                aggregated_data['data'] = metric_datas[workload]
         else:
-            aggregated_IM_data[workload] = internal_metric_datas[workload]
-    return aggregated_IM_data
+            aggregated_data[workload] = metric_datas[workload]
+    return aggregated_data
 
 
 def metric_preprocess(metrics):

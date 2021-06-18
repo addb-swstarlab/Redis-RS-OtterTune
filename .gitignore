@@ -180,3 +180,5 @@ Dockerfile
 *.pyc
 
 /tuner/logs
+
+*.ipynb

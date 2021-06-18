@@ -55,29 +55,33 @@ def metricSimplification(metric_data, logger):
 
 
     # #KMeansClusters()
-    # kmeans_models = KMeansClusters()
-    # ##TODO: Check Those Options
-    # kmeans_models.fit(components, min_cluster=1,
-    #                   max_cluster=min(n_cols - 1, 20),
-    #                   sample_labels=unique_columnlabels,
-    #                   estimator_params={'n_init': 50})
-    model = MeanShiftClustering(components)
-    clusters = model.fit(components)
-    print(clusters)
-    for i in np.unique(clusters):
-        print(unique_columnlabels[list(clusters).index(i)])
+    kmeans_models = KMeansClusters()
+    ##TODO: Check Those Options
+    kmeans_models.fit(components, min_cluster=1,
+                      max_cluster=min(n_cols - 1, 20),
+                      sample_labels=unique_columnlabels,
+                      estimator_params={'n_init': 100})
 
-    from sklearn.mixture import GaussianMixture
-    gmm = GaussianMixture(n_components=2,random_state=0).fit(components)
-    gmm_cluster_labels = gmm.predict(components)
-    gmm_cluster ={}
-    for i,labels in enumerate(gmm_cluster_labels):
-        if gmm_cluster.get(labels):
-            gmm_cluster[labels].append(unique_columnlabels[i])
-        else:
-            gmm_cluster[labels] = [unique_columnlabels[i]]
-    print(gmm_cluster)
-    assert False
+    # print(components)
+    # model = MeanShiftClustering(components)
+    # clusters = model.fit(components)
+    # print("cluster_centers_",model.model.cluster_centers_)
+    # print("cluster_labels_",model.model.labels_)
+    # print(clusters)
+    # for i in np.unique(clusters):
+    #     print(unique_columnlabels[list(clusters).index(i)])
+
+    # from sklearn.mixture import GaussianMixture
+    # gmm = GaussianMixture(n_components=2,random_state=0).fit(components)
+    # #print(gmm.means_)
+    # gmm_cluster_labels = gmm.predict(components)
+    # gmm_cluster ={}
+    # for i,labels in enumerate(gmm_cluster_labels):
+    #     if gmm_cluster.get(labels):
+    #         gmm_cluster[labels].append(unique_columnlabels[i])
+    #     else:
+    #         gmm_cluster[labels] = [unique_columnlabels[i]]
+    # print(gmm_cluster)
 
     # Compute optimal # clusters, k, using gap statistics
     gapk = create_kselection_model("gap-statistic")
@@ -126,26 +130,6 @@ def knobsRanking(knob_data, metric_data, mode, logger):
     else:
         logger.info('Feature importance')
         logger.info(feature_imp)
-
-    # if mode == 'lasso':
-    # # run lasso algorithm
-    #     lasso_model = LassoPath()
-    #     lasso_model.fit(shuffled_knob_matrix, shuffled_metric_matrix, encoded_knob_columnlabels)        
-    #     encoded_knobs = lasso_model.get_ranked_features()
-    # elif mode == "XGB":
-    #     xgb_model = XGBR()
-    #     xgb_model.fit(shuffled_knob_matrix, shuffled_metric_matrix, encoded_knob_columnlabels)
-    #     encoded_knobs = xgb_model.get_ranked_knobs()
-    #     feature_imp = xgb_model.get_ranked_importance()
-    #     logger.info('feature importance')
-    #     logger.info(feature_imp)
-    # elif mode == "RF":
-    #     rf = RFR()
-    #     rf.fit(shuffled_knob_matrix,shuffled_metric_matrix,encoded_knob_columnlabels)
-    #     encoded_knobs = rf.get_ranked_features()
-    #     feature_imp = rf.get_ranked_importance()
-    #     logger.info('feature importance')
-    #     logger.info(feature_imp)
 
     consolidated_knobs = consolidate_columnlabels(encoded_knobs)
 
