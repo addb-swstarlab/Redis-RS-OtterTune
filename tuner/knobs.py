@@ -103,16 +103,6 @@ def knobs_make_dict(knobs_path):
     dict_AOF['columnlabels'] = np.array(AOF_columns[0])
     return dict_RDB, dict_AOF
 
-def add_workloadInfo(knob_data,workload_info,target_info):
-    new_knob_data = {'data': [],"columnlabels" : knob_data['columnlabels'], "rowlabels" : knob_data['rowlabels']}
-    for workload in range(1,len(workload_info.keys())):
-        if target_info == workload:
-            continue
-        for data in knob_data['data']:
-            new_knob_data['data'].append((data,workload_info[str(workload)]))
-    new_knob_data['data'] = np.array(new_knob_data['data'])
-    return new_knob_data
-
 
 def aggregateMetrics(metric_datas):
     """

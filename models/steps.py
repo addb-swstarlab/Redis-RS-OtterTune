@@ -1,19 +1,91 @@
+import os
+import json
 
 from models.cluster import GapStatistic, KMeansClusters, create_kselection_model
 from models.factor_analysis import FactorAnalysis
 from models.preprocessing import (get_shuffle_indices, consolidate_columnlabels)
 from models.mean_shift import MeanShiftClustering
-
+from models.redisDataset import RedisDataset
 from models.ranking import Ranking
-
-from models.gp import GPRNP
-
-from sklearn.preprocessing import StandardScaler
-from sklearn.gaussian_process import GaussianProcessRegressor
-import numpy as np
 from models.parameters import *
+from models.dnn import RedisDNN
+
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.model_selection import train_test_split
+import numpy as np
+import pandas as pd
+
+import torch
+from torch.optim import AdamW
 
 import utils
+import knobs
+
+DATA_PATH = "../data/redis_data"
+DEVICE = torch.device("cpu")
+
+def dataPreprocessing(target_num, persistence,logger):
+    target_DATA_PATH = "../data/redis_data/workload{}".format(target_num)
+    
+    knobs_path = os.path.join(DATA_PATH, "configs")
+    if persistence == "RDB":
+        knob_data, _ = knobs.load_knobs(knobs_path)
+    elif persistence == "AOF":
+        _, knob_data = knobs.load_knobs(knobs_path)
+
+    logger.info("Finish Load Knob Data")
+
+    internal_metric_datas = {}
+    external_metric_datas = {}
+
+    # len()-1 because of configs dir
+    for i in range(1,len(os.listdir(DATA_PATH))):
+    #for i in range(1,10):
+        if target_num == i:
+            target_external_data, _ = knobs.load_metrics(metric_path = os.path.join(target_DATA_PATH ,f"result_{persistence.lower()}_external_{i}.csv"),
+                                                labels = knob_data['rowlabels'],
+                                                metrics = ['Totals_Ops/sec', 'Totals_p99_Latency'])
+        else:
+            internal_metric_data, _ = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{i}',f'result_{persistence.lower()}_internal_{i}.csv'),
+                                                            labels = knob_data['rowlabels'])
+            
+            external_metric_data, _ = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{i}',f'result_{persistence.lower()}_external_{i}.csv'),
+                                                labels = knob_data['rowlabels'],
+                                                metrics = ['Totals_Ops/sec', 'Totals_p99_Latency'])
+            internal_metric_datas[f'workload{i}'] = internal_metric_data['data']
+            external_metric_datas[f'workload{i}'] = external_metric_data['data']
+
+    internal_metric_datas['columnlabels'] = internal_metric_data['columnlabels']
+    internal_metric_datas['rowlabels'] = internal_metric_data['rowlabels']
+    external_metric_datas['columnlabels'] = ['Totals_Ops/sec', 'Totals_p99_Latency']
+    logger.info("Finish Load Internal and External Metrics Data")
+
+    """
+    workload{2~18} = workload datas composed of different key(workload2, workload3, ...) [N of configs, N of columnlabels]
+    columnlabels  = Internal Metric names
+    rowlabels = Index for Workload data
+
+    internal_metric_datas = {
+        'workload{2~18} except target(1)'=array([[1,2,3,...], [2,3,4,...], ...[]])
+        'columnlabels'=array(['IM_1', 'IM_2', ...]),
+        'rowlabels'=array([1, 2, ..., 10000])}
+    """
+
+    aggregated_IM_data = knobs.aggregateMetrics(internal_metric_datas)
+    aggregated_EM_data = knobs.aggregateMetrics(external_metric_datas)
+
+    """
+    data = concat((workload2,...,workload18)) length = 10000 * N of workload
+    columnlabels  = same as internal_metric_datas's columnlabels
+    rowlabels = same as internal_metric_datas's rowlabels
+
+    aggregated_IM_data = {
+        'data'=array([[1,2,3,...], [2,3,4,...], ...[]])
+        'columnlabels'=array(['IM_1', 'IM_2', ...]),
+        'rowlabels'=array([1, 2, ..., 10000])}
+    
+    """
+    return knob_data, aggregated_IM_data, aggregated_EM_data, target_external_data
 
 #Step 1
 def metricSimplification(metric_data, logger):
@@ -135,81 +207,66 @@ def knobsRanking(knob_data, metric_data, mode, logger):
 
     return consolidated_knobs
 
-def memtier_parsing(*args):
-    pass
 
+def prepareForTraining(target, lr, top_k_knobs, aggregated_EM_data, target_external_data):
+    with open("../data/workloads_info.json",'r') as f:
+        workload_info = json.load(f)
 
-def configuration_recommendation(target_knob, target_metric, logger, gp_type='numpy', db_type='redis', data_type='RDB'):
-    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric, db_type, data_type)
+    workloads=np.array([])
+    target_workload = np.array([])
+    for workload in range(1,len(workload_info.keys())):
+        if workload != target:
+            if len(workloads) == 0:
+                workloads = np.array(workload_info[str(workload)])
+            else:
+                workloads = np.vstack((workloads,np.array(workload_info[str(workload)])))
+        else:
+            target_workload = np.array(workload_info[str(workload)])
+    
+    top_k_knobs = pd.DataFrame(top_k_knobs['data'], columns = top_k_knobs['columnlabels'])
+    aggregated_EM_data = pd.DataFrame(aggregated_EM_data['data'], columns = ['Totals_Ops/sec', 'Totals_p99_Latency'])
+    workload_infos = pd.DataFrame(workloads,columns = workload_info['info'])
+    target_workload = pd.DataFrame([target_workload],columns= workload_info['info'])
+    target_external_data = pd.DataFrame(target_external_data['data'], columns = ['Totals_Ops/sec', 'Totals_p99_Latency'])
 
-    num_samples = params["NUM_SAMPLES"]
-    X_samples = np.empty((num_samples, X_scaled.shape[1]))
-    for i in range(X_scaled.shape[1]):
-        X_samples[:, i] = np.random.rand(num_samples) * (X_max[i] - X_min[i]) + X_min[i]
+    top_k_knobs['tmp'] = 1
+    workload_infos['tmp'] = 1
+    target_external_data['tmp'] = 1
+    target_workload['tmp'] = 1
+    knobWithworkload = pd.merge(top_k_knobs,workload_infos,on=['tmp'])
+    knobWithworkload = knobWithworkload.drop('tmp',axis=1)
+    targetWorkload = pd.merge(top_k_knobs,target_workload,on=['tmp'])
+    targetWorkload = targetWorkload.drop('tmp',axis=1)
+    target_external_data = target_external_data.drop('tmp',axis=1)
 
-    # q = queue.PriorityQueue()
-    # for x in range(0, y_scaled.shape[0]):
-    #     q.put((y_scaled[x][0], x))
+    X_train, X_val, y_train, y_val = train_test_split(knobWithworkload, aggregated_EM_data, test_size = 0.33, random_state=42)
 
-    # ## TODO : What...?
-    # i = 0
-    # while i < params['TOP_NUM_CONFIG']:
-    #     try:
-    #         item = q.get_nowait()
-    #         # Tensorflow get broken if we use the training data points as
-    #         # starting points for GPRGD. We add a small bias for the
-    #         # starting points. GPR_EPS default value is 0.001
-    #         # if the starting point is X_max, we minus a small bias to
-    #         # make sure it is within the range.
-    #         dist = sum(np.square(X_max - X_scaled[item[1]]))
-    #         if dist < 0.001:
-    #             X_samples = np.vstack((X_samples, X_scaled[item[1]] - abs(params['GPR_EPS'])))
-    #         else:
-    #             X_samples = np.vstack((X_samples, X_scaled[item[1]] + abs(params['GPR_EPS'])))
-    #         i = i + 1
-    #     except queue.Empty:
-    #         break
-    res = None
-    if gp_type == 'numpy':
-        # DO GPRNP
-        model = GPRNP(length_scale = params["GPR_LENGTH_SCALE"],
-                        magnitude=params["GPR_MAGNITUDE"],
-                        max_train_size=params['GPR_MAX_TRAIN_SIZE'],
-                        batch_size=params['GPR_BATCH_SIZE'])
-        model.fit(X_scaled,y_scaled,ridge=params["GPR_RIDGE"])
-        res = model.predict(X_samples).ypreds
-        logger.info('do GPRNP')
-        del model
-    elif gp_type == 'scikit':
-        # # DO SCIKIT-LEARN GP
-        # model = GaussianProcessRegressor().fit(X_scaled,y_scaled)
-        # res = model.predict(X_samples)
-        # print('do scikit-learn gp')
+    scaler_X = MinMaxScaler().fit(X_train)
+    #Because y doesn't have zero
+    scaler_y = MinMaxScaler().fit(y_train)
 
-        from sklearn.gaussian_process.kernels import DotProduct
-        GPRkernel = DotProduct(sigma_0=0.5)
-        model = GaussianProcessRegressor(kernel = GPRkernel,
-                            alpha = params["ALPHA"]).fit(X_scaled,y_scaled)
-        res = model.predict(X_samples)
-        del model
-    else:
-        raise Exception("gp_type should be one of (numpy and scikit)")
+    X_tr = scaler_X.transform(X_train).astype(np.float32)
+    X_val = scaler_X.transform(X_val).astype(np.float32)
+    y_tr = scaler_y.transform(y_train).astype(np.float32)
+    y_val = scaler_y.transform(y_val).astype(np.float32)
 
-    best_config_idx = np.argmax(res.ravel())
-    if len(set(res.ravel()))==1:
-        logger.info("FAIL TRAIN")
-        return False, -float('inf'), None
-    best_config = X_samples[best_config_idx, :]
-    best_config = X_scaler.inverse_transform(best_config)
-    X_min_inv = X_scaler.inverse_transform(X_min)
-    X_max_inv = X_scaler.inverse_transform(X_max)
-    best_config = np.minimum(best_config, X_max_inv)
-    best_config = np.maximum(best_config, X_min_inv)
-    conf_map = {k: best_config[i] for i, k in enumerate(X_columnlabels)}
-    # logger.info("\n\n\n")
-    logger.info(conf_map)
-    #convert_dict_to_conf(conf_map, data_type)
+    X_te = scaler_X.transform(targetWorkload).astype(np.float32)
+    y_te = scaler_y.transform(target_external_data).astype(np.float32)    
 
-    logger.info("FINISH TRAIN")
-    print(np.max(res.ravel()))
-    return True, np.max(res.ravel()), conf_map
+    trainDataset = RedisDataset(X_tr, y_tr)
+    valDataset = RedisDataset(X_val, y_val)
+    testDataset = RedisDataset(X_te, y_te)
+
+    from torch.utils.data import DataLoader,RandomSampler
+    trainSampler = RandomSampler(trainDataset)
+    valSampler = RandomSampler(valDataset)
+    testSampler = RandomSampler(testDataset)
+
+    trainDataloader = DataLoader(trainDataset, sampler = trainSampler, batch_size = 32, collate_fn = utils.collate_function)
+    valDataloader = DataLoader(valDataset, sampler = valSampler, batch_size = 16, collate_fn = utils.collate_function)
+    testDataloader = DataLoader(testDataset, sampler = testSampler, batch_size = 4, collate_fn = utils.collate_function)
+
+    model = RedisDNN(9,2).to(DEVICE)
+
+    optimizer = AdamW(model.parameters(), lr = lr, weight_decay = 0.01)
+    return model, optimizer, trainDataloader, valDataloader, testDataloader

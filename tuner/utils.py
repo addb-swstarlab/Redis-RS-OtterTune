@@ -9,6 +9,8 @@ import logging.handlers
 
 import datetime
 
+import torch
+
 def get_logger(log_path='./logs'):
 
     if not os.path.exists(log_path):
@@ -78,6 +80,14 @@ def get_ranked_knob_data(ranked_knobs, knob_data, top_k):
     #print('Pruned Ranked knobs: ', ranked_knob_data['columnlabels'])
 
     return ranked_knob_data
+
+def collate_function(examples):
+    knobs=[None]*len(examples)
+    EMs=[None]*len(examples)
+    for i,(knob,EM) in enumerate(examples):
+        knobs[i] = knob
+        EMs[i] = EM
+    return torch.tensor(knobs),torch.tensor(EMs)
 
 def convert_dict_to_conf(rec_config, persistence):
     f = open('../data/redis_data/init_config.conf', 'r')

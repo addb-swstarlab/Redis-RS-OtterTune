@@ -5,119 +5,154 @@ Train the model
 
 import os
 import sys
-import json
-
-import utils
-import knobs
 import argparse
-from glob import glob
-sys.path.append('../')
-##TODO: we can use environment after...
 import copy
 
-from models.steps import (metricSimplification, knobsRanking, configuration_recommendation)
-from models.redisDataset import RedisDataset
-from sklearn.model_selection import train_test_split
+import numpy as np
+from tqdm import tqdm
+
+import torch
+import torch.nn.functional as F
+
+import utils
+
+sys.path.append('../')
+##TODO: we can use environment after...
+
+from models.steps import (dataPreprocessing, metricSimplification, knobsRanking, prepareForTraining, )
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--params', type = str, default = '', help='Load existing parameters')
+parser.add_argument('--target', type = int, default =  1, help='Target Workload')
+parser.add_argument('--persistence', type = str, choices = ["RDB","AOF"], default = 'RDB', help='Choose Persistant Methods')
+parser.add_argument("--db",type = str, choices = ["redis","rocksdb"], default = 'redis', help="DB type")
+parser.add_argument("--rki",type = str, default = 'lasso', help = "knob_identification mode")
+parser.add_argument("--gp", type = str, default = "numpy")
+parser.add_argument("--topk",type = int, default = 4, help = "Top # knobs")
+parser.add_argument("--n_epochs",type = int, default = 50, help = "Train # epochs with model")
+parser.add_argument("--lr", type = float, default = 1e-6, help = "Learning Rate")
+
+opt = parser.parse_args()
+DATA_PATH = "../data/redis_data"
+DEVICE = torch.device("cpu")
+
+
+if not os.path.exists('save_knobs'):
+    os.mkdir('save_knobs')
+
+#expr_name = 'train_{}'.format(utils.config_exist(opt.persistence))
+
+print("======================MAKE LOGGER====================")
+logger, log_dir = utils.get_logger(os.path.join('./logs'))
+
+logger.info("#==============================Data PreProcessing Stage=================================")
+'''
+    internal_metrics, external_metrics, knobs
+    metric_data : internal metrics
+    knobs_data : configuration knobs
+'''
+
+def train_epoch(model,trainDataloader,optimizer):
+    train_loss = 0.0
+    train_ACC = 0
+    train_steps = 0
+    model.train()
+    for _ , batch in enumerate(tqdm(trainDataloader,desc="Iteration")):
+        optimizer.zero_grad()
+        knobs_with_info = batch[0].to(DEVICE)
+        targets = batch[1].to(DEVICE)
+
+        outputs = model(knobs_with_info)
+
+        loss = F.mse_loss(outputs,targets)
+        loss.backward()
+        optimizer.step()
+
+        train_loss += loss.item()
+        train_steps +=1
+
+    return train_loss / len(trainDataloader), train_ACC
+
+def eval_epoch(model, valDataloader):
+    model.eval()
+    val_loss = 0
+    val_ACC = 0
+    with torch.no_grad():
+        for _, batch in enumerate(tqdm(valDataloader,desc="Iteration")):
+            knobs_with_info = batch[0].to(DEVICE)
+            targets = batch[1].to(DEVICE)
+            outputs = model(knobs_with_info)
+            loss = F.mse_loss(outputs,targets)
+            val_loss += loss.item()
+    val_loss /= len(valDataloader)
+    return val_loss, val_ACC
+
+def test(model, testDataloader):
+    test_loss, test_mae = 0, 0
+    model.eval()
+    with torch.no_grad():
+        for _, batch in enumerate(tqdm(testDataloader,desc="Iteration")):
+            knobs_with_info = batch[0].to(DEVICE)
+            targets = batch[1].to(DEVICE)
+            outputs = model(knobs_with_info)
+            loss = F.mse_loss(outputs,targets)
+            mae = np.mean(np.absolute(outputs.numpy()-targets.numpy()))
+            test_loss += loss.item()
+            test_mae += mae
+    return test_loss, test_mae
+
+
+def train(model, trainDataloader, valDataloader, testDataloader, optimizer):
+    val_losses = []
+    test_losses = []
+    model_save_path = utils.make_date_dir("./model_save")
+    logger.info("Model save path : {}".format(model_save_path))
+
+    best_loss = float('inf')
+    best_acc = 0
+    patience = 0
+
+    #scheduler = LambdaLR(optimizer=optimizer,lr_lambda=lambda epoch:0.95**epoch,last_epoch=-1,verbose=False)
+
+    for epoch in range(int(opt.n_epochs)):
+        patience +=1
+        logger.info("====================================Train====================================")
+        train_loss, _ = train_epoch(model,trainDataloader,optimizer)
+        logger.info("[Train Epoch {}] train Loss : {}".format(epoch+1,train_loss))
+
+        logger.info("====================================Val====================================")
+        val_loss, _ = eval_epoch(model,valDataloader)
+        logger.info("[Eval Epoch {}] val Loss : {}".format(epoch+1,val_loss))
+
+        logger.info("====================================Test====================================")
+        test_loss, test_mae = test(model,testDataloader)
+        
+        logger.info("[Epoch {}] Test_Loss: {}, Test_MAE : {}".format(epoch+1, test_loss, test_mae))
+
+        if test_loss < best_loss:
+            torch.save(model.state_dict(),os.path.join(model_save_path,"model_"+str(epoch+1)+".pt"))
+            best_loss = test_loss
+            patience = 0
+        if patience == 5:
+            break
+
+        val_losses.append(val_loss)
+        test_losses.append(test_loss)
+
+    return val_losses, test_losses
+
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--tencent', action='store_true', help='Use Tencent Server')
-    parser.add_argument('--params', type=str, default='', help='Load existing parameters')
-    parser.add_argument('--target', type=int, default= 1, help='Target Workload')
-    parser.add_argument('--persistence', type=str, choices=["RDB","AOF"], default='RDB', help='Choose Persistant Methods')
-    parser.add_argument("--db",type=str, choices=["redis","rocksdb"], default='redis', help="DB type")
-    parser.add_argument("--rki",type=str, default='lasso', help = "knob_identification mode")
-    parser.add_argument("--gp", type=str, default="numpy")
-    parser.add_argument("--topk",type=int, default=4, help = "Top # knobs")
-    
-    opt = parser.parse_args()
-    DATA_PATH = "../data/redis_data"
-    PATH=None
-
-    if not os.path.exists('save_knobs'):
-        os.mkdir('save_knobs')
-
-    #expr_name = 'train_{}'.format(utils.config_exist(opt.persistence))
-
-    print("======================MAKE LOGGER====================")
-    logger, log_dir = utils.get_logger(os.path.join('./logs'))
-
-    logger.info("#==============================Data PreProcessing Stage=================================")
-    '''
-        internal_metrics, external_metrics, knobs
-        metric_data : internal metrics
-        knobs_data : configuration knobs
-    '''
 
     #Target workload loading
     logger.info("Target workload name is {}".format(opt.target))
-    target_DATA_PATH = "../data/redis_data/workload{}".format(opt.target)
 
-    with open("../data/workloads_info.json",'r') as f:
-        workload_info = json.load(f)
-    
-    knobs_path = os.path.join(DATA_PATH, "configs")
-    if opt.persistence == "RDB":
-        knob_data, _ = knobs.load_knobs(knobs_path)
-    elif opt.persistence == "AOF":
-        _, knob_data = knobs.load_knobs(knobs_path)
+    knob_data, aggregated_IM_data, aggregated_EM_data, target_external_data = dataPreprocessing(opt.target, opt.persistence,logger)
 
-    logger.info("Finish Load Knob Data")
-
-    internal_metric_datas = {}
-    external_metric_datas = {}
-
-    # len()-1 because of configs dir
-    for i in range(1,len(os.listdir(DATA_PATH))):
-    #for i in range(1,10):
-        if opt.target == i:
-            target_external_data = knobs.load_metrics(metric_path = os.path.join(target_DATA_PATH ,f"result_{opt.persistence.lower()}_external_{i}.csv"),
-                                                labels = knob_data['rowlabels'],
-                                                metrics = ['Totals_Ops/sec', 'Totals_p99_Latency'])
-        else:
-            internal_metric_data, dict_le_in = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{i}',f'result_{opt.persistence.lower()}_internal_{i}.csv'),
-                                                            labels = knob_data['rowlabels'])
-            
-            external_metric_data, _ = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{i}',f'result_{opt.persistence.lower()}_external_{i}.csv'),
-                                                labels = knob_data['rowlabels'],
-                                                metrics = ['Totals_Ops/sec', 'Totals_p99_Latency'])
-            internal_metric_datas[f'workload{i}'] = internal_metric_data['data']
-            external_metric_datas[f'workload{i}'] = external_metric_data['data']
-
-    internal_metric_datas['columnlabels'] = internal_metric_data['columnlabels']
-    internal_metric_datas['rowlabels'] = internal_metric_data['rowlabels']
-    external_metric_datas['columnlabels'] = ['Totals_Ops/sec', 'Totals_p99_Latency']
-    logger.info("Finish Load Internal and External Metrics Data")
-
-    """
-    workload{2~18} = workload datas composed of different key(workload2, workload3, ...) [N of configs, N of columnlabels]
-    columnlabels  = Internal Metric names
-    rowlabels = Index for Workload data
-
-    internal_metric_datas = {
-        'workload{2~18} except target(1)'=array([[1,2,3,...], [2,3,4,...], ...[]])
-        'columnlabels'=array(['IM_1', 'IM_2', ...]),
-        'rowlabels'=array([1, 2, ..., 10000])}
-    """
-
-    aggregated_IM_data = knobs.aggregateMetrics(internal_metric_datas)
-    aggregated_EM_data = knobs.aggregateMetrics(external_metric_datas)
-
-    """
-    data = concat((workload2,...,workload18)) length = 10000 * N of workload
-    columnlabels  = same as internal_metric_datas's columnlabels
-    rowlabels = same as internal_metric_datas's rowlabels
-
-    aggregated_IM_data = {
-        'data'=array([[1,2,3,...], [2,3,4,...], ...[]])
-        'columnlabels'=array(['IM_1', 'IM_2', ...]),
-        'rowlabels'=array([1, 2, ..., 10000])}
-    
-    """
-
-    logger.info("====================== metricSimplification ====================")
+    logger.info("====================== Metrics_Simplification ====================")
     pruned_metrics = metricSimplification(aggregated_IM_data, logger)
-    logger.info("Done pruning metrics for workload {} (# of pruned metrics: {}).\n\n""Pruned metrics: {}\n".format(opt.persistence, len(pruned_metrics),pruned_metrics))
+    logger.info("Done pruning metrics for workload {} (# of pruned metrics: {}).\n\n""Pruned metrics: {}\n".format(opt.persistence, len(pruned_metrics), pruned_metrics))
     metric_idxs = [i for i, metric_name in enumerate(aggregated_IM_data['columnlabels']) if metric_name in pruned_metrics]
     ranked_metric_data = {
         'data' : aggregated_IM_data['data'][:,metric_idxs],
@@ -130,7 +165,7 @@ if __name__ == '__main__':
     """
     ### KNOBS RANKING STAGE ###
     rank_knob_data = copy.deepcopy(knob_data)
-    logger.info("\n\n====================== run_knob_identification ====================")
+    logger.info("\n\n====================== Run_Knobs_Ranking ====================")
     logger.info("use mode = {}".format(opt.rki))
     ranked_knobs = knobsRanking(knob_data = rank_knob_data,
                                 metric_data = ranked_metric_data,
@@ -141,20 +176,33 @@ if __name__ == '__main__':
 
     top_k = opt.topk
     top_k_knobs = utils.get_ranked_knob_data(ranked_knobs, knob_data, top_k)
-    new_knob_data = knobs.add_workloadInfo(top_k_knobs,workload_info,1)
 
-    X_train, X_val, y_train, y_val = train_test_split(top_k_knobs['data'],aggregated_EM_data['data'],test_size = 0.33, random_state=42)
+    model, optimizer, trainDataloader, valDataloader, testDataloader = prepareForTraining(opt.target, opt.lr, top_k_knobs, aggregated_EM_data, target_external_data)
+
+    val_losses, test_losses = train(model, trainDataloader, valDataloader, testDataloader, optimizer)
+
+    """
+    #### Pre-train Stage(Rename)
+    1. Dataset 내에서 scaler가 잘 작동하는지 print
+    2. Dataloader 다시 확인하기
+    3. Dense
+    4. 쥬피터에서 train으로 코드 이동
+    ~제주도
+    #### Recommendation
+    5. GA
+    6. 결과를 config로 만드는 방법
+    #### Clustering 기법들 비교
+    1. 중심값
+    2. 파라미터
+    #### Problem
+    현재는 한번에 두 개를 동시에 맞추는 모델임.
+    1. 각각의 Dense가 예측을 하게 함
+        -> 편차가 생김(계수를 부여)
+    2. 아예 모델을 2개 만드는 거임
+        -> EM간의 trade-off를 못해
+        -> 두 개의 config 추천이 나옴
+    """
     
-    trainDataset = RedisDataset(X_train,y_train)
-    valDataset = RedisDataset(X_val,y_val)
-    
-
-
-
-    
-
-
-
     # ### RECOMMENDATION STAGE ###
     # ##TODO: choose k like incremental 4, 8, 16, ...
     # top_ks = range(4,13)
