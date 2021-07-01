@@ -9,6 +9,7 @@ import logging
 import argparse
 from random import randint
 
+import numpy as np
 import torch
 
 import utils
@@ -34,7 +35,6 @@ parser.add_argument("--model_mode", type = str, default = 'single', help = "mode
 opt = parser.parse_args()
 DATA_PATH = "../data/redis_data"
 DEVICE = torch.device("cpu")
-
 
 if not os.path.exists('save_knobs'):
     os.mkdir('save_knobs')
@@ -84,7 +84,13 @@ def main():
                  "Ranked knobs: {}\n".format(opt.persistence, len(ranked_knobs), ranked_knobs))
 
     top_k = opt.topk
+    """
+    top_k_knobs : dict()
+    """
     top_k_knobs = utils.get_ranked_knob_data(ranked_knobs, knob_data, top_k)
+    knob_save_path = utils.make_date_dir('./save_knobs')
+    logger.info("Knob save path : {}".format(knob_save_path))
+    np.save(os.path.join(knob_save_path,'knobs_{}.npy'.format(top_k)),np.array(top_k_knobs['columnlabels']))
 
     model, optimizer, trainDataloader, valDataloader, testDataloader = prepareForTraining(opt.target, opt.lr, top_k_knobs, aggregated_EM_data, target_external_data, opt.model_mode)
 

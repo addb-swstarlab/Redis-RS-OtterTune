@@ -184,3 +184,5 @@ Dockerfile
 *.ipynb
 
 /tuner/model_save
+
+/tuner/save_knobs

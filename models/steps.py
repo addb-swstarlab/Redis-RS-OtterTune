@@ -3,6 +3,7 @@ import json
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from models.cluster import GapStatistic, KMeansClusters, create_kselection_model, MeanShiftClustering
 from models.factor_analysis import FactorAnalysis
@@ -113,6 +114,10 @@ def metricSimplification(metric_data, logger):
     # Shuffle the matrix rows
     shuffle_indices = get_shuffle_indices(n_rows)
     shuffled_matrix = unique_matrix[shuffle_indices, :]
+    
+    import warnings
+
+    warnings.filterwarnings('ignore')
 
     #FactorAnalysis
     fa_model = FactorAnalysis()
@@ -121,13 +126,69 @@ def metricSimplification(metric_data, logger):
     components = fa_model.components_.T.copy()
 
 
-    # #KMeansClusters()
-    kmeans_models = KMeansClusters()
-    ##TODO: Check Those Options
-    kmeans_models.fit(components, min_cluster=1,
-                      max_cluster=min(n_cols - 1, 20),
-                      sample_labels=unique_columnlabels,
-                      estimator_params={'n_init': 100})
+    # # #KMeansClusters()
+    # kmeans_models = KMeansClusters()
+    # ##TODO: Check Those Options
+    # kmeans_models.fit(components, min_cluster=1,
+    #                   max_cluster=min(n_cols - 1, 20),
+    #                   sample_labels=unique_columnlabels,
+    #                   estimator_params={'n_init': 100})
+
+
+    # Gaussian Mixture Model Clustering
+    from sklearn.mixture import GaussianMixture
+    from sklearn.metrics import silhouette_score
+
+    def SelBest(arr:list, X:int)->list:
+        '''
+        returns the set of X configurations with shorter distance
+        '''
+        dx=np.argsort(arr)[:X]
+        return arr[dx]
+    try:
+        n_clusters=np.arange(2, 5)
+        sils=[]
+        sils_err=[]
+        iterations=10
+        for n in n_clusters:
+            tmp_sil=[]
+            for _ in range(iterations):
+                gmm=GaussianMixture(n, n_init=2, reg_covar=1e-5).fit(components) 
+                labels=gmm.predict(components)
+                sil=silhouette_score(components, labels, metric='euclidean')
+                tmp_sil.append(sil)
+            val=np.mean(SelBest(np.array(tmp_sil), int(iterations/5)))
+            err=np.std(tmp_sil)
+            sils.append(val)
+            sils_err.append(err)
+    except:
+        pass
+
+    positive = []
+    for i in range(len(sils)):
+        if sils[i] > 0:
+            positive.append(i)
+    n_cluster = positive[-1]+2
+    print(n_cluster)
+
+    gmm=GaussianMixture(n_cluster, n_init=2, reg_covar=1e-5).fit(components)
+    centroid = gmm.means_
+    cluster_label = gmm.predict(components)
+
+    from scipy.spatial.distance import cdist
+    from collections import defaultdict
+
+    dict_ = defaultdict(list)
+    
+    for i,v in enumerate(cluster_label):
+        dict_[v].append((cdist([centroid[v]], [components[i]], 'euclidean')[0][0],i))
+    near_metric_idx = []
+    for i in dict_.keys():
+        near_metric_idx.append(sorted(dict_[i])[0][1])
+    print(near_metric_idx)
+    for i in near_metric_idx:
+        print(unique_columnlabels[i])
+    assert False
 
     # print(components)
     # model = MeanShiftClustering(components)
@@ -226,13 +287,11 @@ def prepareForTraining(target, lr, top_k_knobs, aggregated_EM_data, target_exter
 
     top_k_knobs['tmp'] = 1
     workload_infos['tmp'] = 1
-    target_external_data['tmp'] = 1
     target_workload['tmp'] = 1
     knobWithworkload = pd.merge(top_k_knobs,workload_infos,on=['tmp'])
     knobWithworkload = knobWithworkload.drop('tmp',axis=1)
     targetWorkload = pd.merge(top_k_knobs,target_workload,on=['tmp'])
     targetWorkload = targetWorkload.drop('tmp',axis=1)
-    target_external_data = target_external_data.drop('tmp',axis=1)
 
     X_train, X_val, y_train, y_val = train_test_split(knobWithworkload, aggregated_EM_data, test_size = 0.33, random_state=42)
 
@@ -272,3 +331,53 @@ def prepareForTraining(target, lr, top_k_knobs, aggregated_EM_data, target_exter
         optimizer['Totals_Ops_sec'] = AdamW(model['Totals_Ops_sec'].parameters(), lr = lr, weight_decay = 0.01)
         optimizer['Totals_p99_Latency'] = AdamW(model['Totals_p99_Latency'].parameters(), lr = lr, weight_decay = 0.01)
     return model, optimizer, trainDataloader, valDataloader, testDataloader
+
+
+def fitness_function(solution, args, model):
+    solDataset = RedisDataset(solution,np.zeros((len(solution,2))))
+    solDataloader = DataLoader(solDataset,shuffle=False,batch_size=args.n_pool,collate_fn=utils.collate_function)
+
+    model.eval()
+
+    fitness = []
+    with torch.no_grad():
+        for _, batch in enumerate(tqdm(solDataloader,desc="Iteration")):
+            knobs_with_info = batch[0].to(DEVICE)
+            fitness_batch = model(knobs_with_info).detach().cpu().numpy()
+            fitness_batch = fitness_batch.ravel().tolist()
+            fitness += fitness_batch
+    return fitness
+
+
+def prepareForGA(args,top_k_knobs):
+    with open("../data/workloads_info.json",'r') as f:
+        workload_info = json.load(f)
+
+    target_workload_info = np.array(workload_info[args.target])
+
+    knobs_path = os.path.join(DATA_PATH, "configs")
+    if args.persistence == "RDB":
+        knob_data, _ = knobs.load_knobs(knobs_path)
+    elif args.persistence == "AOF":
+        _, knob_data = knobs.load_knobs(knobs_path)
+
+    target_external_data, _ = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{args.target}',f'result_{args.persistence.lower()}_external_{args.target}.csv'),
+                                    labels = knob_data['rowlabels'],
+                                    metrics = ['Totals_Ops/sec', 'Totals_p99_Latency'])
+    
+    top_k_knobs = pd.DataFrame(knob_data['data'], columns = knob_data['columnlabels'])[top_k_knobs]                                 
+    target_external_data = pd.DataFrame(target_external_data['data'], columns = ['Totals_Ops/sec', 'Totals_p99_Latency'])      
+    target_workload_infos = pd.DataFrame(target_workload_info,columns = workload_info['info'])
+
+    top_k_knobs['tmp'] = 1
+    target_workload_infos['tmp'] = 1
+
+    knobWithworkload = pd.merge(top_k_knobs,target_workload_infos,on=['tmp'])
+    knobWithworkload = knobWithworkload.drop('tmp',axis=1)
+
+    scaler_X = MinMaxScaler().fit(knobWithworkload)
+    scaler_y = MinMaxScaler().fit(target_external_data)
+
+    target_external_data = scaler_y.transform(target_external_data).astype(np.float32)
+
+    return knobWithworkload, target_external_data, scaler_X, scaler_y
