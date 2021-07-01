@@ -1,22 +1,22 @@
 import os
 import json
 
-from models.cluster import GapStatistic, KMeansClusters, create_kselection_model
-from models.factor_analysis import FactorAnalysis
-from models.preprocessing import (get_shuffle_indices, consolidate_columnlabels)
-from models.mean_shift import MeanShiftClustering
-from models.redisDataset import RedisDataset
-from models.ranking import Ranking
-from models.parameters import *
-from models.dnn import RedisDNN
-
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.model_selection import train_test_split
 import numpy as np
 import pandas as pd
 
+from models.cluster import GapStatistic, KMeansClusters, create_kselection_model, MeanShiftClustering
+from models.factor_analysis import FactorAnalysis
+from models.preprocessing import (get_shuffle_indices, consolidate_columnlabels)
+from models.redisDataset import RedisDataset
+from models.ranking import Ranking
+from models.dnn import RedisSingleDNN, RedisTwiceDNN
+
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.model_selection import train_test_split
+
 import torch
 from torch.optim import AdamW
+from torch.utils.data import DataLoader,RandomSampler
 
 import utils
 import knobs
@@ -92,16 +92,11 @@ def metricSimplification(metric_data, logger):
     matrix = metric_data['data']
     columnlabels = metric_data['columnlabels']
 
-    # # Bin each column (metric) in the matrix by its decile
-    # binner = Bin(bin_start=1, axis=0)
-    # binned_matrix = binner.fit_transform(matrix)
-
     # Remove any constant columns
     nonconst_matrix = []
     nonconst_columnlabels = []
     for col, (_,v) in zip(matrix.T, enumerate(columnlabels)):
         if np.any(col != col[0]):
-            #print(col.reshape(-1, 1))
             nonconst_matrix.append(col.reshape(-1, 1))
             nonconst_columnlabels.append(v)
     assert len(nonconst_matrix) > 0, "Need more data to train the model"
@@ -208,7 +203,7 @@ def knobsRanking(knob_data, metric_data, mode, logger):
     return consolidated_knobs
 
 
-def prepareForTraining(target, lr, top_k_knobs, aggregated_EM_data, target_external_data):
+def prepareForTraining(target, lr, top_k_knobs, aggregated_EM_data, target_external_data, model_mode):
     with open("../data/workloads_info.json",'r') as f:
         workload_info = json.load(f)
 
@@ -257,7 +252,6 @@ def prepareForTraining(target, lr, top_k_knobs, aggregated_EM_data, target_exter
     valDataset = RedisDataset(X_val, y_val)
     testDataset = RedisDataset(X_te, y_te)
 
-    from torch.utils.data import DataLoader,RandomSampler
     trainSampler = RandomSampler(trainDataset)
     valSampler = RandomSampler(valDataset)
     testSampler = RandomSampler(testDataset)
@@ -265,8 +259,16 @@ def prepareForTraining(target, lr, top_k_knobs, aggregated_EM_data, target_exter
     trainDataloader = DataLoader(trainDataset, sampler = trainSampler, batch_size = 32, collate_fn = utils.collate_function)
     valDataloader = DataLoader(valDataset, sampler = valSampler, batch_size = 16, collate_fn = utils.collate_function)
     testDataloader = DataLoader(testDataset, sampler = testSampler, batch_size = 4, collate_fn = utils.collate_function)
-
-    model = RedisDNN(9,2).to(DEVICE)
-
-    optimizer = AdamW(model.parameters(), lr = lr, weight_decay = 0.01)
+    if model_mode == 'single':
+        model = RedisSingleDNN(9,2).to(DEVICE)
+        optimizer = AdamW(model.parameters(), lr = lr, weight_decay = 0.01)
+    elif model_mode == 'twice':
+        model = RedisTwiceDNN(9,2).to(DEVICE)
+        optimizer = AdamW(model.parameters(), lr = lr, weight_decay = 0.01)
+    elif model_mode == "double":
+        model, optimizer = dict(), dict()
+        model['Totals_Ops_sec'] = RedisSingleDNN(9,1).to(DEVICE)
+        model['Totals_p99_Latency'] = RedisSingleDNN(9,1).to(DEVICE)
+        optimizer['Totals_Ops_sec'] = AdamW(model['Totals_Ops_sec'].parameters(), lr = lr, weight_decay = 0.01)
+        optimizer['Totals_p99_Latency'] = AdamW(model['Totals_p99_Latency'].parameters(), lr = lr, weight_decay = 0.01)
     return model, optimizer, trainDataloader, valDataloader, testDataloader

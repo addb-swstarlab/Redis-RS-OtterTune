@@ -1,4 +1,3 @@
 numpy==1.14.5
 psutil==5.4.6
 requests==2.18.4
-xgboost

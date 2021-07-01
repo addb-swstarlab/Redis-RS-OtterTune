@@ -170,7 +170,6 @@ from sklearn.preprocessing import StandardScaler
 # Modifying to import upper folder
 import sys
 sys.path.append('../')
-from models.util import DataUtil
 
 
 def process_training_data(target_knob, target_metric, db_type, data_type):

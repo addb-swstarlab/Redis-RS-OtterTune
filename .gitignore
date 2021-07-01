@@ -183,4 +183,4 @@ Dockerfile
 
 *.ipynb
 
-*.pt
+/tuner/model_save
