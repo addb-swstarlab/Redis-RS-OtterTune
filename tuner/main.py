@@ -26,6 +26,7 @@ parser.add_argument('--params', type = str, default = '', help='Load existing pa
 parser.add_argument('--target', type = int, default = 1, help='Target Workload')
 parser.add_argument('--persistence', type = str, choices = ["RDB","AOF"], default = 'RDB', help='Choose Persistant Methods')
 parser.add_argument("--db",type = str, choices = ["redis","rocksdb"], default = 'redis', help="DB type")
+parser.add_argument("--cluster",type=str, choices = ['k-means','ms','gmm'],default = 'ms')
 parser.add_argument("--rki",type = str, default = 'lasso', help = "knob_identification mode")
 parser.add_argument("--topk",type = int, default = 4, help = "Top # knobs")
 parser.add_argument("--n_epochs",type = int, default = 100, help = "Train # epochs with model")
@@ -60,7 +61,7 @@ def main():
     knob_data, aggregated_IM_data, aggregated_EM_data, target_external_data = dataPreprocessing(opt.target, opt.persistence,logger)
 
     logger.info("====================== Metrics_Simplification ====================")
-    pruned_metrics = metricSimplification(aggregated_IM_data, logger)
+    pruned_metrics = metricSimplification(aggregated_IM_data, logger, opt)
     logger.info("Done pruning metrics for workload {} (# of pruned metrics: {}).\n\n""Pruned metrics: {}\n".format(opt.persistence, len(pruned_metrics), pruned_metrics))
     metric_idxs = [i for i, metric_name in enumerate(aggregated_IM_data['columnlabels']) if metric_name in pruned_metrics]
     ranked_metric_data = {

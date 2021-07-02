@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from models.cluster import GapStatistic, KMeansClusters, create_kselection_model, MeanShiftClustering
+from models.cluster import GapStatistic, KMeansClusters, create_kselection_model, MeanShiftClustering, GMMClustering
 from models.factor_analysis import FactorAnalysis
 from models.preprocessing import (get_shuffle_indices, consolidate_columnlabels)
 from models.redisDataset import RedisDataset
@@ -24,6 +24,10 @@ import knobs
 
 DATA_PATH = "../data/redis_data"
 DEVICE = torch.device("cpu")
+
+import warnings
+
+warnings.filterwarnings('ignore')
 
 def dataPreprocessing(target_num, persistence,logger):
     target_DATA_PATH = "../data/redis_data/workload{}".format(target_num)
@@ -89,7 +93,7 @@ def dataPreprocessing(target_num, persistence,logger):
     return knob_data, aggregated_IM_data, aggregated_EM_data, target_external_data
 
 #Step 1
-def metricSimplification(metric_data, logger):
+def metricSimplification(metric_data, logger, args):
     matrix = metric_data['data']
     columnlabels = metric_data['columnlabels']
 
@@ -114,10 +118,9 @@ def metricSimplification(metric_data, logger):
     # Shuffle the matrix rows
     shuffle_indices = get_shuffle_indices(n_rows)
     shuffled_matrix = unique_matrix[shuffle_indices, :]
-    
-    import warnings
 
-    warnings.filterwarnings('ignore')
+    shuffled_matrix = MinMaxScaler().fit_transform(shuffled_matrix)
+    #shuffled_matrix = StandardScaler().fit_transform(shuffled_matrix)
 
     #FactorAnalysis
     fa_model = FactorAnalysis()
@@ -125,100 +128,56 @@ def metricSimplification(metric_data, logger):
     # Components: metrics * factors
     components = fa_model.components_.T.copy()
 
+    # Clustering method : Gaussian Mixture Model(GMM)
+    if args.cluster == 'gmm':
+        cluster = GMMClustering(components)
+        cluster.fit(components)
+        pruned_metrics = cluster.get_closest_samples(unique_columnlabels)
+        logger.info("Found optimal number of clusters: {}".format(cluster.optimK))
+        print(pruned_metrics)
+    elif args.cluster == 'k-means':
+        #KMeansClusters()
+        kmeans_models = KMeansClusters()
+        ##TODO: Check Those Options
+        kmeans_models.fit(components, min_cluster=1,
+                          max_cluster=min(n_cols - 1, 20),
+                          sample_labels=unique_columnlabels,
+                          estimator_params={'n_init': 100})
+        gapk = create_kselection_model("gap-statistic")
+        gapk.fit(components, kmeans_models.cluster_map_)
 
-    # # #KMeansClusters()
-    # kmeans_models = KMeansClusters()
-    # ##TODO: Check Those Options
-    # kmeans_models.fit(components, min_cluster=1,
-    #                   max_cluster=min(n_cols - 1, 20),
-    #                   sample_labels=unique_columnlabels,
-    #                   estimator_params={'n_init': 100})
+        logger.info("Found optimal number of clusters: {}".format(gapk.optimal_num_clusters_))
 
-
-    # Gaussian Mixture Model Clustering
-    from sklearn.mixture import GaussianMixture
-    from sklearn.metrics import silhouette_score
-
-    def SelBest(arr:list, X:int)->list:
-        '''
-        returns the set of X configurations with shorter distance
-        '''
-        dx=np.argsort(arr)[:X]
-        return arr[dx]
-    try:
-        n_clusters=np.arange(2, 5)
-        sils=[]
-        sils_err=[]
-        iterations=10
-        for n in n_clusters:
-            tmp_sil=[]
-            for _ in range(iterations):
-                gmm=GaussianMixture(n, n_init=2, reg_covar=1e-5).fit(components) 
-                labels=gmm.predict(components)
-                sil=silhouette_score(components, labels, metric='euclidean')
-                tmp_sil.append(sil)
-            val=np.mean(SelBest(np.array(tmp_sil), int(iterations/5)))
-            err=np.std(tmp_sil)
-            sils.append(val)
-            sils_err.append(err)
-    except:
-        pass
-
-    positive = []
-    for i in range(len(sils)):
-        if sils[i] > 0:
-            positive.append(i)
-    n_cluster = positive[-1]+2
-    print(n_cluster)
-
-    gmm=GaussianMixture(n_cluster, n_init=2, reg_covar=1e-5).fit(components)
-    centroid = gmm.means_
-    cluster_label = gmm.predict(components)
-
-    from scipy.spatial.distance import cdist
-    from collections import defaultdict
-
-    dict_ = defaultdict(list)
+        # Get pruned metrics, cloest samples of each cluster center
+        pruned_metrics = kmeans_models.cluster_map_[gapk.optimal_num_clusters_].get_closest_samples()
     
-    for i,v in enumerate(cluster_label):
-        dict_[v].append((cdist([centroid[v]], [components[i]], 'euclidean')[0][0],i))
-    near_metric_idx = []
-    for i in dict_.keys():
-        near_metric_idx.append(sorted(dict_[i])[0][1])
-    print(near_metric_idx)
-    for i in near_metric_idx:
-        print(unique_columnlabels[i])
-    assert False
+    # Clustering method : Mean Shift
+    elif args.cluster == 'ms':
 
-    # print(components)
-    # model = MeanShiftClustering(components)
-    # clusters = model.fit(components)
-    # print("cluster_centers_",model.model.cluster_centers_)
-    # print("cluster_labels_",model.model.labels_)
-    # print(clusters)
-    # for i in np.unique(clusters):
-    #     print(unique_columnlabels[list(clusters).index(i)])
+        from sklearn.cluster import MeanShift
+        from sklearn.cluster import estimate_bandwidth
+        from collections import defaultdict
+        from scipy.spatial.distance import cdist
+        
+        pruned_metrics = []
+        bandwidth = estimate_bandwidth(components, quantile=0.2)
 
-    # from sklearn.mixture import GaussianMixture
-    # gmm = GaussianMixture(n_components=2,random_state=0).fit(components)
-    # #print(gmm.means_)
-    # gmm_cluster_labels = gmm.predict(components)
-    # gmm_cluster ={}
-    # for i,labels in enumerate(gmm_cluster_labels):
-    #     if gmm_cluster.get(labels):
-    #         gmm_cluster[labels].append(unique_columnlabels[i])
-    #     else:
-    #         gmm_cluster[labels] = [unique_columnlabels[i]]
-    # print(gmm_cluster)
+        print("Optimal Bandwidth : ", round(bandwidth, 3))
+        meanshift = MeanShift(bandwidth=bandwidth)
 
-    # Compute optimal # clusters, k, using gap statistics
-    gapk = create_kselection_model("gap-statistic")
-    gapk.fit(components, kmeans_models.cluster_map_)
+        cluster_labels = meanshift.fit_predict(components)
+        print('Cluster Label Type:', np.unique(cluster_labels))
 
-    logger.info("Found optimal number of clusters: {}".format(gapk.optimal_num_clusters_))
-
-    # Get pruned metrics, cloest samples of each cluster center
-    pruned_metrics = kmeans_models.cluster_map_[gapk.optimal_num_clusters_].get_closest_samples()
+        centers = meanshift.cluster_centers_
+        
+        dict_ = defaultdict(list)
+        for i, v in enumerate(cluster_labels):
+            dict_[v].append((cdist([centers[v]], [components[i]], 'euclidean')[0][0],i))
+        near_metric_idx = []
+        for i in dict_.keys():
+            near_metric_idx.append(sorted(dict_[i])[0][1])
+            pruned_metrics.append(unique_columnlabels[sorted(dict_[i])[0][1]])
+            print(pruned_metrics)
 
     return pruned_metrics
 
@@ -334,7 +293,7 @@ def prepareForTraining(target, lr, top_k_knobs, aggregated_EM_data, target_exter
 
 
 def fitness_function(solution, args, model):
-    solDataset = RedisDataset(solution,np.zeros((len(solution,2))))
+    solDataset = RedisDataset(solution,np.zeros((len(solution),2)))
     solDataloader = DataLoader(solDataset,shuffle=False,batch_size=args.n_pool,collate_fn=utils.collate_function)
 
     model.eval()
@@ -344,15 +303,13 @@ def fitness_function(solution, args, model):
         for _, batch in enumerate(tqdm(solDataloader,desc="Iteration")):
             knobs_with_info = batch[0].to(DEVICE)
             fitness_batch = model(knobs_with_info).detach().cpu().numpy()
-            fitness_batch = fitness_batch.ravel().tolist()
-            fitness += fitness_batch
-    return fitness
+            fitness.append(fitness_batch)
+    return np.array(fitness)
 
 
 def prepareForGA(args,top_k_knobs):
     with open("../data/workloads_info.json",'r') as f:
         workload_info = json.load(f)
-
     target_workload_info = np.array(workload_info[args.target])
 
     knobs_path = os.path.join(DATA_PATH, "configs")
@@ -366,8 +323,8 @@ def prepareForGA(args,top_k_knobs):
                                     metrics = ['Totals_Ops/sec', 'Totals_p99_Latency'])
     
     top_k_knobs = pd.DataFrame(knob_data['data'], columns = knob_data['columnlabels'])[top_k_knobs]                                 
-    target_external_data = pd.DataFrame(target_external_data['data'], columns = ['Totals_Ops/sec', 'Totals_p99_Latency'])      
-    target_workload_infos = pd.DataFrame(target_workload_info,columns = workload_info['info'])
+    target_external_data = pd.DataFrame(target_external_data['data'], columns = ['Totals_Ops/sec', 'Totals_p99_Latency'])
+    target_workload_infos = pd.DataFrame([target_workload_info],columns = workload_info['info'])
 
     top_k_knobs['tmp'] = 1
     target_workload_infos['tmp'] = 1
@@ -377,7 +334,5 @@ def prepareForGA(args,top_k_knobs):
 
     scaler_X = MinMaxScaler().fit(knobWithworkload)
     scaler_y = MinMaxScaler().fit(target_external_data)
-
-    target_external_data = scaler_y.transform(target_external_data).astype(np.float32)
 
     return knobWithworkload, target_external_data, scaler_X, scaler_y
