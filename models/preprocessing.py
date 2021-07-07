@@ -4,12 +4,21 @@
 # Copyright (c) 2017-18, Carnegie Mellon University Database Group
 #
 from abc import ABCMeta, abstractmethod
+from numbers import Number
 
 from itertools import chain, combinations, combinations_with_replacement
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler as SklearnMinMaxScaler
 
-from .util import is_numeric_matrix, is_lexical_matrix
+
+def is_numeric_matrix(matrix):
+    assert matrix.size > 0
+    return isinstance(matrix.ravel()[0], Number)
+
+
+def is_lexical_matrix(matrix):
+    assert matrix.size > 0
+    return isinstance(matrix.ravel()[0], str)
 
 
 # ==========================================================
@@ -192,14 +201,6 @@ class PolynomialFeatures(Preprocess):
         self.include_bias_ = include_bias
         self.n_input_features_ = None
         self.n_output_features_ = None
-
-#     @property
-#     def powers_(self):
-#         combinations = self._combinations(self.n_input_features_, self.degree_,
-#                                           self.interaction_only_,
-#                                           self.include_bias_)
-#         return np.vstack(np.bincount(c, minlength=self.n_input_features_)
-#                          for c in combinations)
 
     @staticmethod
     def _combinations(n_features, degree, interaction_only, include_bias):
@@ -402,3 +403,6 @@ class MinMaxScaler(Preprocess):
         if matrix.ndim == 1:
             matrix = matrix.reshape(1, -1)
         return self.scaler_.inverse_transform(matrix)
+
+
+

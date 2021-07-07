@@ -1,228 +1,64 @@
 # -*- coding: utf-8 -*-
 
-import time, os
-import pickle, json
-import logging
-import datetime
-import pandas as pd
+import json
+import random
 import numpy as np
-from operator import itemgetter
-from sklearn.preprocessing import LabelEncoder
+
+import os
 import logging
+import logging.handlers
 
+import datetime
 
-def time_start():
-    return time.time()
+import torch
 
+def get_logger(log_path='./logs'):
 
-def time_end(start):
-    end = time.time()
-    delay = end - start
-    return delay
+    if not os.path.exists(log_path):
+        os.mkdir(log_path)
 
-
-def get_timestamp():
-    """
-    获取UNIX时间戳
-    """
-    return int(time.time())
-
-
-def time_to_str(timestamp):
-    """
-    将时间戳转换成[YYYY-MM-DD HH:mm:ss]格式
-    """
-    return datetime.datetime.\
-        fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
-
-
-class Logger:
-
-    def __init__(self, name, log_file=''):
-        self.log_file = log_file
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        sh = logging.StreamHandler()
-        self.logger.addHandler(sh)
-        if len(log_file) > 0:
-            self.log2file = True
-        else:
-            self.log2file = False
-
-    def _write_file(self, msg):
-        if self.log2file:
-            with open(self.log_file, 'a+') as f:
-                f.write(msg + '\n')
-
-    def get_timestr(self):
-        timestamp = get_timestamp()
-        date_str = time_to_str(timestamp)
-        return date_str
-
-    def warn(self, msg):
-        msg = "%s[WARN] %s" % (self.get_timestr(), msg)
-        self.logger.warning(msg)
-        self._write_file(msg)
-
-    def info(self, msg):
-        msg = "%s[INFO] %s" % (self.get_timestr(), msg)
-        #self.logger.info(msg)
-        self._write_file(msg)
-
-    def error(self, msg):
-        msg = "%s[ERROR] %s" % (self.get_timestr(), msg)
-        self.logger.error(msg)
-        self._write_file(msg)
-
-
-def save_state_actions(state_action, filename):
-
-    f = open(filename, 'wb')
-    pickle.dump(state_action, f)
-    f.close()
-
-def knobs_make_dict(knobs_path):
-    '''
-        input: DataFrame form (samples_num, knobs_num)
-        output: Dictionary form --> RDB and AOF
-            ex. dict_knobs = {'columnlabels'=array([['knobs_1', 'knobs_2', ...],['knobs_1', 'knobs_2', ...], ...]),
-                                'rowlabels'=array([1, 2, ...]),
-                                'data'=array([[1,2,3,...], [2,3,4,...], ...[]])}
-
-        For mode selection knob, "yes" -> 1 , "no" -> 0
-    '''
-    config_files = os.listdir(knobs_path)
-
-    dict_RDB = {}
-    dict_AOF = {}
-    RDB_datas = []
-    RDB_columns = []
-    RDB_rowlabels = []
-    AOF_datas = []
-    AOF_columns = []
-    AOF_rowlabels = []
-    ISAOF = 0
-    ISRDB = 1
-
-    for m in range(len(config_files)):
-        flag = 0
-        datas = []
-        columns = []
-        knob_path = os.path.join(knobs_path, 'config'+str(m+1)+'.conf')
-        f = open(knob_path, 'r')
-        config_file = f.readlines()
-        knobs_list = config_file[config_file.index('\n')+1:]
-
-        cnt = 1
-
-        for l in knobs_list:
-            if l.split()[0] != 'save':
-                col, d = l.split()
-                if d.isalpha():
-                    if d in ["no","yes"]:
-                        d = ["no","yes"].index(d)
-                    elif d in ["always","everysec","no"]:
-                        d = ["always","everysec","no"].index(d)
-                elif d.endswith("mb"):
-                    d = d[:-2]
-                datas.append(d)
-                columns.append(col)
-            else:
-                col, d1, d2 = l.split()
-                columns.append(col+str(cnt)+"_sec")
-                columns.append(col+str(cnt)+"_changes")
-                datas.append(d1)
-                datas.append(d2)
-                cnt += 1
-
-            if l.split()[0] == 'appendonly':
-                flag = ISAOF
-            if l.split()[0] == 'save':
-                flag = ISRDB
-
-        # add active knobs
-        if "activedefrag" not in columns:
-            columns.append("activedefrag")
-            # "0" means no
-            datas.append("0")
-            columns.append("active-defrag-threshold-lower")
-            datas.append(10)
-            columns.append("active-defrag-threshold-upper")
-            datas.append(100)
-            columns.append("active-defrag-cycle-min")
-            datas.append(5)
-            columns.append("active-defrag-cycle-max")
-            datas.append(75)
-        datas = list(map(int,datas))
-        if flag == ISRDB:
-    #         print('RDB')
-            RDB_datas.append(datas)
-            RDB_columns.append(columns)
-            RDB_rowlabels.append(m+1)
-        if flag == ISAOF: 
-    #         print('AOF')
-            AOF_datas.append(datas)
-            AOF_columns.append(columns)
-            AOF_rowlabels.append(m+1)
-
-    dict_RDB['data'] = np.array(RDB_datas)
-    dict_RDB['rowlabels'] = np.array(RDB_rowlabels)
-    dict_RDB['columnlabels'] = np.array(RDB_columns[0])
-    dict_AOF['data'] = np.array(AOF_datas)
-    dict_AOF['rowlabels'] = np.array(AOF_rowlabels)
-    dict_AOF['columnlabels'] = np.array(AOF_columns[0])
-    return dict_RDB, dict_AOF
-
-def metrics_make_dict(pd_metrics, labels):
-    '''
-        input: DataFrame form (samples_num, metrics_num)
-        output: Dictionary form
-            ex. dict_metrics = {'columnlabels'=array([['metrics_1', 'metrics_2', ...],['metrics_1', 'metrics_2', ...], ...]),
-                            'rowlabels'=array([1, 2, ...]),
-                            'data'=array([[1,2,3,...], [2,3,4,...], ...[]])}
-    '''
-    # labels = RDB or AOF rowlabels
+    logger = logging.getLogger()
+    date_format = '%Y-%m-%d %H:%M:%S'
+    formatter = logging.Formatter('[%(levelname)s|%(filename)s:%(lineno)s] %(asctime)s %(message)s', date_format)
+    i = 0
+    today = datetime.datetime.now()
+    name = 'log-'+today.strftime('%Y%m%d')+'-'+'%02d'%i+'.log'
+    while os.path.exists(os.path.join(log_path, name)):
+        i += 1
+        name = 'log-'+today.strftime('%Y%m%d')+'-'+'%02d'%i+'.log'
     
-    dict_metrics = {}
-    tmp_rowlabels = [_-1 for _ in labels]
-    pd_metrics = pd_metrics.iloc[tmp_rowlabels][:]
-    nan_columns = pd_metrics.columns[pd_metrics.isnull().any()]
-    pd_metrics = pd_metrics.drop(columns=nan_columns)
+    fileHandler = logging.FileHandler(os.path.join(log_path, name))
+    streamHandler = logging.StreamHandler()
     
-    # for i in range(len(pd_metrics)):
-    #     columns.append(pd_metrics.columns.to_list())
-    dict_metrics['columnlabels'] = np.array(pd_metrics.columns)
-    #dict_metrics['columnlabels'] = np.array(itemgetter(*tmp_rowlabels)(dict_metrics['columnlabels'].tolist()))
-    dict_metrics['rowlabels'] = np.array(labels)
-    dict_metrics['data'] = np.array(pd_metrics.values)
+    fileHandler.setFormatter(formatter)
+    streamHandler.setFormatter(formatter)
     
-    return dict_metrics
+    logger.addHandler(fileHandler)
+    logger.addHandler(streamHandler)
     
+    logger.setLevel(logging.INFO)
+    logger.info('Writing logs at {}'.format(os.path.join(log_path, name)))
+    return logger, os.path.join(log_path, name)
 
-def load_metrics(m_path = ' ', labels = [], metrics=None, mode = ' '):
-    if mode == "internal":
-        pd_metrics = pd.read_csv(m_path)
-        pd_metrics, dict_le = metric_preprocess(pd_metrics)
-        return metrics_make_dict(pd_metrics, labels), dict_le
-    else:
-        pd_metrics = pd.read_csv(m_path)
-        #pd_metrics, dict_le = metric_preprocess(pd_metrics)
-        return metrics_make_dict(pd_metrics[metrics], labels), None
 
-def load_knobs(k_path):
-    return knobs_make_dict(k_path)
+def make_date_dir(path):
+    """
+    :param path
+    :return: os.path.join(path, date_dir)
+    """
+    if not os.path.exists(path):
+        os.mkdir(path)
+    i = 0
+    today = datetime.datetime.now()
+    name = today.strftime('%Y%m%d')+'-'+'%02d' % i
 
-def metric_preprocess(metrics):
-    '''To invert for categorical internal metrics'''
-    dict_le = {}
-    c_metrics = metrics.copy()
+    while os.path.exists(os.path.join(path, name)):
+        i += 1
+        name = today.strftime('%Y%m%d')+'-'+'%02d' % i
+        
+    os.mkdir(os.path.join(path, name))
+    return os.path.join(path, name)
 
-    for col in metrics.columns:
-        if isinstance(c_metrics[col][0], str):
-            le = LabelEncoder()
-            c_metrics[col] = le.fit_transform(c_metrics[col])
-            dict_le[col] = le
-    return c_metrics, dict_le
 
 def get_ranked_knob_data(ranked_knobs, knob_data, top_k):
     '''
@@ -245,6 +81,30 @@ def get_ranked_knob_data(ranked_knobs, knob_data, top_k):
     #print('Pruned Ranked knobs: ', ranked_knob_data['columnlabels'])
 
     return ranked_knob_data
+
+def collate_function(examples):
+    knobs=[None]*len(examples)
+    EMs=[None]*len(examples)
+    for i,(knob,EM) in enumerate(examples):
+        knobs[i] = knob
+        EMs[i] = EM
+    return torch.tensor(knobs),torch.tensor(EMs)
+
+def make_random_option(top_k_knobs):
+    with open('../data/test_range.json','r') as f:
+        data = json.load(f)
+    option = {}
+    for top_k_knob in top_k_knobs:
+        if data[top_k_knob][0] == 'categorical':
+            option[top_k_knob] = data[top_k_knob][-1].index(random.choice(data[top_k_knob][-1]))
+        elif data[top_k_knob][0] == 'boolean':
+            option[top_k_knob] = random.choice([0,1])
+        elif data[top_k_knob][0] == 'integer':
+            option[top_k_knob] = random.choice(range(data[top_k_knob][-1][0],data[top_k_knob][-1][1]+1))
+        else:
+            option[top_k_knob] = round(random.choice(np.arange(data[top_k_knob][-1][0],data[top_k_knob][-1][1]+0.1,0.1)),1)
+    return option
+
 
 def convert_dict_to_conf(rec_config, persistence):
     f = open('../data/redis_data/init_config.conf', 'r')
@@ -323,7 +183,10 @@ def config_exist(persistence):
 
 
 from sklearn.preprocessing import StandardScaler
-from models.util import DataUtil
+
+# Modifying to import upper folder
+import sys
+sys.path.append('../')
 
 
 def process_training_data(target_knob, target_metric, db_type, data_type):

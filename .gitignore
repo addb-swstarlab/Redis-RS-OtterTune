@@ -178,3 +178,15 @@ Dockerfile
 .idea
 
 *.pyc
+
+/tuner/logs
+
+*.ipynb
+
+/tuner/model_save/
+
+/tuner/save_knobs/
+
+/tuner/GA_logs/
+
+nohup.out

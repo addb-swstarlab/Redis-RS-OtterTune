@@ -4,7 +4,7 @@
 # Copyright (c) 2017-18, Carnegie Mellon University Database Group
 #
 from abc import ABCMeta, abstractproperty
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 import os
 import json
@@ -13,13 +13,107 @@ import numpy as np
 
 from scipy.spatial.distance import cdist
 from sklearn.metrics import silhouette_score
+from sklearn.mixture import GaussianMixture
 from sklearn.cluster import KMeans as SklearnKMeans
+from sklearn.cluster import MeanShift, estimate_bandwidth
 from celery.utils.log import get_task_logger
 
 from .base import ModelBase
 
 # Log debug messages
 LOGGER = get_task_logger(__name__)
+
+class GMMClustering(ModelBase):
+    def __init__(self,X):
+        self.model = None
+        self.optimK = None
+        self.centroid = None
+        self.components = X
+        self.sils_score = None
+        self.select_K()
+
+    def _reset(self):
+        self.model = None
+        self.optimK = None
+        self.centroid = None
+    
+    def select_K(self):
+        def SelBest(arr:list, X:int)->list:
+            '''
+            returns the set of X configurations with shorter distance
+            '''
+            dx=np.argsort(arr)[:X]
+            return arr[dx]
+        try:
+            n_clusters=np.arange(2, 25)
+            sils = []
+            sils_err = []
+            iterations = 20
+            for n in n_clusters:
+                tmp_sil = []
+                for _ in range(iterations):
+                    gmm = GaussianMixture(n, n_init = 2, reg_covar=1e-6).fit(self.components)
+                    labels = gmm.predict(self.components)
+                    sil = silhouette_score(self.components, labels, metric='euclidean')
+                    tmp_sil.append(sil)
+                val = np.mean(SelBest(np.array(tmp_sil),int(iterations/5)))
+                err = np.std(tmp_sil)
+                sils.append(val)
+                sils_err.append(err)
+        except:
+            pass
+        if len(sils):
+            self.optimK = sils.index(max(sils)) + 2
+            self.sils_score = sils
+            self.model = GaussianMixture(self.optimK, n_init = 2, reg_covar=1e-6).fit(self.components)
+        else:
+            assert False, "No optim K, So fail to get GMM"
+        return self
+        
+    def fit(self,X):
+        self.centroid = self.model.means_
+        cluster_label = self.model.predict(X)
+
+        dict_ = defaultdict(list)
+        for i, v in enumerate(cluster_label):
+            dict_[v].append((cdist([self.centroid[v]], [X[i]], 'euclidean')[0][0],i))
+        self.near_metric_idx = []
+        for i in dict_.keys():
+            self.near_metric_idx.append(sorted(dict_[i])[0][1])
+        return self
+
+    def get_closest_samples(self, labels):
+        return [labels[idx] for idx in self.near_metric_idx]
+
+class MeanShiftClustering(ModelBase):
+    def __init__(self,X):
+        self.bw = self.find_bandwidth(X)
+        self.cluster_lables = None
+        self.centroid = None
+        self.model = MeanShift(bandwidth = self.bw)
+
+    def _reset(self):
+        self.bw = None
+        self.cluster_lables = None
+        self.centroid = None
+
+    def find_bandwidth(self,X):
+        return estimate_bandwidth(X,quantile=0.25)
+
+    def fit(self,X):
+        self.cluster_labels = self.model.fit_predict(X)
+        self.centroid = self.model.cluster_centers_
+        dict_ = defaultdict(list)
+        for i, v in enumerate(self.cluster_labels):
+            dict_[v].append((cdist([self.centroid[v]], [X[i]], 'euclidean')[0][0],i))
+        self.near_metric_idx = []
+        for i in dict_.keys():
+            self.near_metric_idx.append(sorted(dict_[i])[0][1])
+        return self
+
+    def get_closest_samples(self, labels):
+        return [labels[idx] for idx in self.near_metric_idx]
+
 
 
 class KMeans(ModelBase):
