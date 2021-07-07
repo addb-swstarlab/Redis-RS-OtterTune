@@ -168,6 +168,7 @@ def train(model, trainDataloader, valDataloader, testDataloader, optimizer, opt,
     test_losses = []
     model_save_path = utils.make_date_dir("./model_save")
     logger.info("Model save path : {}".format(model_save_path))
+    logger.info("Learning Rate : {}".format(opt.lr))
 
     if opt.model_mode == 'single':
         train_epoch = train_single_epoch
@@ -254,4 +255,4 @@ def train(model, trainDataloader, valDataloader, testDataloader, optimizer, opt,
             val_losses.extend(tmp_val_losses)
             test_losses.extend(tmp_test_losses)
 
-    return best_epoch, best_loss, best_mae
+    return best_epoch, best_loss, best_mae, model_save_path

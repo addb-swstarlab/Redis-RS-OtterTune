@@ -12,7 +12,7 @@ from models.redisDataset import RedisDataset
 from models.ranking import Ranking
 from models.dnn import RedisSingleDNN, RedisTwiceDNN
 
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
 from sklearn.model_selection import train_test_split
 
 import torch
@@ -129,12 +129,12 @@ def metricSimplification(metric_data, logger, args):
     components = fa_model.components_.T.copy()
 
     # Clustering method : Gaussian Mixture Model(GMM)
+    logger.info("Clustering mode : {}".format(args.cluster))
     if args.cluster == 'gmm':
         cluster = GMMClustering(components)
         cluster.fit(components)
         pruned_metrics = cluster.get_closest_samples(unique_columnlabels)
         logger.info("Found optimal number of clusters: {}".format(cluster.optimK))
-        print(pruned_metrics)
     elif args.cluster == 'k-means':
         #KMeansClusters()
         kmeans_models = KMeansClusters()
@@ -153,31 +153,10 @@ def metricSimplification(metric_data, logger, args):
     
     # Clustering method : Mean Shift
     elif args.cluster == 'ms':
-
-        from sklearn.cluster import MeanShift
-        from sklearn.cluster import estimate_bandwidth
-        from collections import defaultdict
-        from scipy.spatial.distance import cdist
-        
-        pruned_metrics = []
-        bandwidth = estimate_bandwidth(components, quantile=0.2)
-
-        print("Optimal Bandwidth : ", round(bandwidth, 3))
-        meanshift = MeanShift(bandwidth=bandwidth)
-
-        cluster_labels = meanshift.fit_predict(components)
-        print('Cluster Label Type:', np.unique(cluster_labels))
-
-        centers = meanshift.cluster_centers_
-        
-        dict_ = defaultdict(list)
-        for i, v in enumerate(cluster_labels):
-            dict_[v].append((cdist([centers[v]], [components[i]], 'euclidean')[0][0],i))
-        near_metric_idx = []
-        for i in dict_.keys():
-            near_metric_idx.append(sorted(dict_[i])[0][1])
-            pruned_metrics.append(unique_columnlabels[sorted(dict_[i])[0][1]])
-            print(pruned_metrics)
+        ms = MeanShiftClustering(components)
+        ms.fit(components)
+        pruned_metrics = ms.get_closest_samples(unique_columnlabels)
+        logger.info("Found optimal number of clusters: {}".format(len(ms.centroid)))
 
     return pruned_metrics
 
@@ -223,14 +202,14 @@ def knobsRanking(knob_data, metric_data, mode, logger):
     return consolidated_knobs
 
 
-def prepareForTraining(target, lr, top_k_knobs, aggregated_EM_data, target_external_data, model_mode):
+def prepareForTraining(opt, top_k_knobs, aggregated_EM_data, target_external_data):
     with open("../data/workloads_info.json",'r') as f:
         workload_info = json.load(f)
 
     workloads=np.array([])
     target_workload = np.array([])
     for workload in range(1,len(workload_info.keys())):
-        if workload != target:
+        if workload != opt.target:
             if len(workloads) == 0:
                 workloads = np.array(workload_info[str(workload)])
             else:
@@ -255,8 +234,7 @@ def prepareForTraining(target, lr, top_k_knobs, aggregated_EM_data, target_exter
     X_train, X_val, y_train, y_val = train_test_split(knobWithworkload, aggregated_EM_data, test_size = 0.33, random_state=42)
 
     scaler_X = MinMaxScaler().fit(X_train)
-    #Because y doesn't have zero
-    scaler_y = MinMaxScaler().fit(y_train)
+    scaler_y = RobustScaler().fit(y_train)
 
     X_tr = scaler_X.transform(X_train).astype(np.float32)
     X_val = scaler_X.transform(X_val).astype(np.float32)
@@ -277,18 +255,18 @@ def prepareForTraining(target, lr, top_k_knobs, aggregated_EM_data, target_exter
     trainDataloader = DataLoader(trainDataset, sampler = trainSampler, batch_size = 32, collate_fn = utils.collate_function)
     valDataloader = DataLoader(valDataset, sampler = valSampler, batch_size = 16, collate_fn = utils.collate_function)
     testDataloader = DataLoader(testDataset, sampler = testSampler, batch_size = 4, collate_fn = utils.collate_function)
-    if model_mode == 'single':
-        model = RedisSingleDNN(9,2).to(DEVICE)
-        optimizer = AdamW(model.parameters(), lr = lr, weight_decay = 0.01)
-    elif model_mode == 'twice':
-        model = RedisTwiceDNN(9,2).to(DEVICE)
-        optimizer = AdamW(model.parameters(), lr = lr, weight_decay = 0.01)
-    elif model_mode == "double":
+    if opt.model_mode == 'single':
+        model = RedisSingleDNN(opt.topk+5,2).to(DEVICE)
+        optimizer = AdamW(model.parameters(), lr = opt.lr, weight_decay = 0.01)
+    elif opt.model_mode == 'twice':
+        model = RedisTwiceDNN(opt.topk+5,2).to(DEVICE)
+        optimizer = AdamW(model.parameters(), lr = opt.lr, weight_decay = 0.01)
+    elif opt.model_mode == "double":
         model, optimizer = dict(), dict()
-        model['Totals_Ops_sec'] = RedisSingleDNN(9,1).to(DEVICE)
-        model['Totals_p99_Latency'] = RedisSingleDNN(9,1).to(DEVICE)
-        optimizer['Totals_Ops_sec'] = AdamW(model['Totals_Ops_sec'].parameters(), lr = lr, weight_decay = 0.01)
-        optimizer['Totals_p99_Latency'] = AdamW(model['Totals_p99_Latency'].parameters(), lr = lr, weight_decay = 0.01)
+        model['Totals_Ops_sec'] = RedisSingleDNN(opt.topk+5,1).to(DEVICE)
+        model['Totals_p99_Latency'] = RedisSingleDNN(opt.topk+5,1).to(DEVICE)
+        optimizer['Totals_Ops_sec'] = AdamW(model['Totals_Ops_sec'].parameters(), lr = opt.lr, weight_decay = 0.01)
+        optimizer['Totals_p99_Latency'] = AdamW(model['Totals_p99_Latency'].parameters(), lr = opt.lr, weight_decay = 0.01)
     return model, optimizer, trainDataloader, valDataloader, testDataloader
 
 
@@ -298,12 +276,15 @@ def fitness_function(solution, args, model):
 
     model.eval()
 
-    fitness = []
+    fitness = np.array([])
     with torch.no_grad():
-        for _, batch in enumerate(tqdm(solDataloader,desc="Iteration")):
+        for _, batch in enumerate(solDataloader):
             knobs_with_info = batch[0].to(DEVICE)
             fitness_batch = model(knobs_with_info).detach().cpu().numpy()
-            fitness.append(fitness_batch)
+            if len(fitness) == 0:
+                fitness = fitness_batch
+            else:
+                fitness = np.vstack([fitness,fitness_batch])
     return np.array(fitness)
 
 
@@ -333,6 +314,6 @@ def prepareForGA(args,top_k_knobs):
     knobWithworkload = knobWithworkload.drop('tmp',axis=1)
 
     scaler_X = MinMaxScaler().fit(knobWithworkload)
-    scaler_y = MinMaxScaler().fit(target_external_data)
+    scaler_y = StandardScaler().fit(target_external_data)
 
     return knobWithworkload, target_external_data, scaler_X, scaler_y

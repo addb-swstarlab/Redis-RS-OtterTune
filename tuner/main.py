@@ -15,15 +15,13 @@ import torch
 import utils
 
 from trainer import train
+from config import Config
 
 sys.path.append('../')
-
 from models.steps import (dataPreprocessing, metricSimplification, knobsRanking, prepareForTraining, )
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--params', type = str, default = '', help='Load existing parameters')
-parser.add_argument('--target', type = int, default = 1, help='Target Workload')
 parser.add_argument('--persistence', type = str, choices = ["RDB","AOF"], default = 'RDB', help='Choose Persistant Methods')
 parser.add_argument("--db",type = str, choices = ["redis","rocksdb"], default = 'redis', help="DB type")
 parser.add_argument("--cluster",type=str, choices = ['k-means','ms','gmm'],default = 'ms')
@@ -42,25 +40,16 @@ if not os.path.exists('save_knobs'):
 
 #expr_name = 'train_{}'.format(utils.config_exist(opt.persistence))
 
-print("======================MAKE LOGGER====================")
-logger, log_dir = utils.get_logger(os.path.join('./logs'))
-
-logger.info("#==============================Data PreProcessing Stage=================================")
-'''
-    internal_metrics, external_metrics, knobs
-    metric_data : internal metrics
-    knobs_data : configuration knobs
-'''
-
-def main():
+def main(opt,logger,log_dir):
     #Target workload loading
     opt.target = randint(1,18)
+    logger.info("====================== {} mode ====================\n".format(opt.persistence))
 
     logger.info("Target workload name is {}".format(opt.target))
 
     knob_data, aggregated_IM_data, aggregated_EM_data, target_external_data = dataPreprocessing(opt.target, opt.persistence,logger)
 
-    logger.info("====================== Metrics_Simplification ====================")
+    logger.info("====================== Metrics_Simplification ====================\n")
     pruned_metrics = metricSimplification(aggregated_IM_data, logger, opt)
     logger.info("Done pruning metrics for workload {} (# of pruned metrics: {}).\n\n""Pruned metrics: {}\n".format(opt.persistence, len(pruned_metrics), pruned_metrics))
     metric_idxs = [i for i, metric_name in enumerate(aggregated_IM_data['columnlabels']) if metric_name in pruned_metrics]
@@ -75,7 +64,7 @@ def main():
     """
     ### KNOBS RANKING STAGE ###
     rank_knob_data = copy.deepcopy(knob_data)
-    logger.info("\n\n====================== Run_Knobs_Ranking ====================")
+    logger.info("====================== Run_Knobs_Ranking ====================\n")
     logger.info("use mode = {}".format(opt.rki))
     ranked_knobs = knobsRanking(knob_data = rank_knob_data,
                                 metric_data = ranked_metric_data,
@@ -91,20 +80,35 @@ def main():
     top_k_knobs = utils.get_ranked_knob_data(ranked_knobs, knob_data, top_k)
     knob_save_path = utils.make_date_dir('./save_knobs')
     logger.info("Knob save path : {}".format(knob_save_path))
+    logger.info("Choose Top {} knobs : {}".format(top_k,top_k_knobs['columnlabels']))
     np.save(os.path.join(knob_save_path,'knobs_{}.npy'.format(top_k)),np.array(top_k_knobs['columnlabels']))
 
-    model, optimizer, trainDataloader, valDataloader, testDataloader = prepareForTraining(opt.target, opt.lr, top_k_knobs, aggregated_EM_data, target_external_data, opt.model_mode)
+    model, optimizer, trainDataloader, valDataloader, testDataloader = prepareForTraining(opt, top_k_knobs, aggregated_EM_data, target_external_data)
+    
+    logger.info("====================== {} Pre-training Stage ====================\n".format(opt.model_mode))
 
-    best_epoch, best_loss, best_mae = train(model, trainDataloader, valDataloader, testDataloader, optimizer, opt, logger)
+    best_epoch, best_loss, best_mae, model_path = train(model, trainDataloader, valDataloader, testDataloader, optimizer, opt, logger)
     if opt.model_mode in ['single', 'twice']:
         logger.info("\n\n[Best Epoch {}] Best_Loss : {} Best_MAE : {}".format(best_epoch, best_loss, best_mae))
     elif opt.model_mode == 'double':
         for name in best_epoch.keys():
             logger.info("\n\n[{} Best Epoch {}] Best_Loss : {} Best_MAE : {}".format(name, best_epoch[name], best_loss[name], best_mae[name]))
+    
+    config = Config(opt.persistence,opt.db,opt.cluster,opt.rki,opt.topk,opt.model_mode,opt.n_epochs,opt.lr)
+    config.save_results(opt.target, best_epoch, best_loss, best_mae, model_path, log_dir)
+
+    return config
 
 if __name__ == '__main__':
+    print("======================MAKE LOGGER====================")
+    logger, log_dir = utils.get_logger(os.path.join('./logs'))
+    '''
+        internal_metrics, external_metrics, knobs
+        metric_data : internal metrics
+        knobs_data : configuration knobs
+    '''
     try:
-        main()
+        main(opt, logger, log_dir)
     except:
         logger.exception("ERROR")
     finally:

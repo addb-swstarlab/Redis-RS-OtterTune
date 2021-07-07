@@ -88,17 +88,31 @@ class GMMClustering(ModelBase):
 class MeanShiftClustering(ModelBase):
     def __init__(self,X):
         self.bw = self.find_bandwidth(X)
+        self.cluster_lables = None
+        self.centroid = None
         self.model = MeanShift(bandwidth = self.bw)
 
     def _reset(self):
         self.bw = None
+        self.cluster_lables = None
+        self.centroid = None
 
     def find_bandwidth(self,X):
-        return estimate_bandwidth(X,quantile=0.05)
+        return estimate_bandwidth(X,quantile=0.25)
 
     def fit(self,X):
-        cluster_labels = self.model.fit_predict(X)
-        return cluster_labels
+        self.cluster_labels = self.model.fit_predict(X)
+        self.centroid = self.model.cluster_centers_
+        dict_ = defaultdict(list)
+        for i, v in enumerate(self.cluster_labels):
+            dict_[v].append((cdist([self.centroid[v]], [X[i]], 'euclidean')[0][0],i))
+        self.near_metric_idx = []
+        for i in dict_.keys():
+            self.near_metric_idx.append(sorted(dict_[i])[0][1])
+        return self
+
+    def get_closest_samples(self, labels):
+        return [labels[idx] for idx in self.near_metric_idx]
 
 
 

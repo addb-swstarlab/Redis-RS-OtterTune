@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import json
+import random
 import numpy as np
 
 import os
@@ -88,6 +89,22 @@ def collate_function(examples):
         knobs[i] = knob
         EMs[i] = EM
     return torch.tensor(knobs),torch.tensor(EMs)
+
+def make_random_option(top_k_knobs):
+    with open('../data/test_range.json','r') as f:
+        data = json.load(f)
+    option = {}
+    for top_k_knob in top_k_knobs:
+        if data[top_k_knob][0] == 'categorical':
+            option[top_k_knob] = data[top_k_knob][-1].index(random.choice(data[top_k_knob][-1]))
+        elif data[top_k_knob][0] == 'boolean':
+            option[top_k_knob] = random.choice([0,1])
+        elif data[top_k_knob][0] == 'integer':
+            option[top_k_knob] = random.choice(range(data[top_k_knob][-1][0],data[top_k_knob][-1][1]+1))
+        else:
+            option[top_k_knob] = round(random.choice(np.arange(data[top_k_knob][-1][0],data[top_k_knob][-1][1]+0.1,0.1)),1)
+    return option
+
 
 def convert_dict_to_conf(rec_config, persistence):
     f = open('../data/redis_data/init_config.conf', 'r')
