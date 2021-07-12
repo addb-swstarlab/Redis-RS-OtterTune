@@ -50,8 +50,6 @@ def main():
 
     current_solution_pool = configs[:args.n_pool].values
     target = scaler_y.transform([target]*args.n_pool)
-    print(target)
-    assert False
     for i in tqdm(range(args.n_generation)):
         scaled_pool = scaler_X.transform(current_solution_pool)
         predicts = fitness_function(scaled_pool, args, model)

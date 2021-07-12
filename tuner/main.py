@@ -22,13 +22,14 @@ from models.steps import (dataPreprocessing, metricSimplification, knobsRanking,
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--target', type=int, default=1)
 parser.add_argument('--persistence', type = str, choices = ["RDB","AOF"], default = 'RDB', help='Choose Persistant Methods')
 parser.add_argument("--db",type = str, choices = ["redis","rocksdb"], default = 'redis', help="DB type")
 parser.add_argument("--cluster",type=str, choices = ['k-means','ms','gmm'],default = 'ms')
 parser.add_argument("--rki",type = str, default = 'lasso', help = "knob_identification mode")
 parser.add_argument("--topk",type = int, default = 4, help = "Top # knobs")
 parser.add_argument("--n_epochs",type = int, default = 100, help = "Train # epochs with model")
-parser.add_argument("--lr", type = float, default = 1e-6, help = "Learning Rate")
+parser.add_argument("--lr", type = float, default = 1e-5, help = "Learning Rate")
 parser.add_argument("--model_mode", type = str, default = 'single', help = "model mode")
 
 opt = parser.parse_args()
@@ -40,9 +41,8 @@ if not os.path.exists('save_knobs'):
 
 #expr_name = 'train_{}'.format(utils.config_exist(opt.persistence))
 
-def main(opt,logger,log_dir):
+def main(opt: argparse , logger: logging, log_dir: str) -> Config:
     #Target workload loading
-    opt.target = randint(1,18)
     logger.info("====================== {} mode ====================\n".format(opt.persistence))
 
     logger.info("Target workload name is {}".format(opt.target))
@@ -83,19 +83,19 @@ def main(opt,logger,log_dir):
     logger.info("Choose Top {} knobs : {}".format(top_k,top_k_knobs['columnlabels']))
     np.save(os.path.join(knob_save_path,'knobs_{}.npy'.format(top_k)),np.array(top_k_knobs['columnlabels']))
 
-    model, optimizer, trainDataloader, valDataloader, testDataloader = prepareForTraining(opt, top_k_knobs, aggregated_EM_data, target_external_data)
+    model, optimizer, trainDataloader, valDataloader, testDataloader, scaler_y = prepareForTraining(opt, top_k_knobs, aggregated_EM_data, target_external_data)
     
     logger.info("====================== {} Pre-training Stage ====================\n".format(opt.model_mode))
 
-    best_epoch, best_loss, best_mae, model_path = train(model, trainDataloader, valDataloader, testDataloader, optimizer, opt, logger)
+    best_epoch, best_th_loss, best_la_loss, best_th_mae_loss, best_la_mae_loss, model_path = train(model, trainDataloader, valDataloader, testDataloader, optimizer, scaler_y, opt, logger)
     if opt.model_mode in ['single', 'twice']:
-        logger.info("\n\n[Best Epoch {}] Best_Loss : {} Best_MAE : {}".format(best_epoch, best_loss, best_mae))
+        logger.info("\n\n[Best Epoch {}] Best_th_Loss : {} Best_la_Loss : {} Best_th_MAE : {} Best_la_MAE : {}".format(best_epoch, best_th_loss, best_la_loss, best_th_mae_loss, best_la_mae_loss))
     elif opt.model_mode == 'double':
         for name in best_epoch.keys():
             logger.info("\n\n[{} Best Epoch {}] Best_Loss : {} Best_MAE : {}".format(name, best_epoch[name], best_loss[name], best_mae[name]))
     
     config = Config(opt.persistence,opt.db,opt.cluster,opt.rki,opt.topk,opt.model_mode,opt.n_epochs,opt.lr)
-    config.save_results(opt.target, best_epoch, best_loss, best_mae, model_path, log_dir)
+    config.save_results(opt.target, best_epoch, best_th_loss, best_la_loss, best_th_mae_loss, best_la_mae_loss, model_path, log_dir)
 
     return config
 

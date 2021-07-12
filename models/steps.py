@@ -1,5 +1,9 @@
 import os
 import json
+import logging
+import argparse
+
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -29,10 +33,10 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-def dataPreprocessing(target_num, persistence,logger):
+def dataPreprocessing(target_num: int, persistence: str, logger: logging) -> Tuple[dict, dict, dict, dict]:
     target_DATA_PATH = "../data/redis_data/workload{}".format(target_num)
     
-    knobs_path = os.path.join(DATA_PATH, "configs")
+    knobs_path:str = os.path.join(DATA_PATH, "configs")
     if persistence == "RDB":
         knob_data, _ = knobs.load_knobs(knobs_path)
     elif persistence == "AOF":
@@ -45,20 +49,22 @@ def dataPreprocessing(target_num, persistence,logger):
 
     # len()-1 because of configs dir
     for i in range(1,len(os.listdir(DATA_PATH))):
-    #for i in range(1,10):
         if target_num == i:
-            target_external_data, _ = knobs.load_metrics(metric_path = os.path.join(target_DATA_PATH ,f"result_{persistence.lower()}_external_{i}.csv"),
+            target_external_data: dict = knobs.load_metrics(metric_path = os.path.join(target_DATA_PATH ,f"result_{persistence.lower()}_external_{i}.csv"),
                                                 labels = knob_data['rowlabels'],
                                                 metrics = ['Totals_Ops/sec', 'Totals_p99_Latency'])
         else:
-            internal_metric_data, _ = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{i}',f'result_{persistence.lower()}_internal_{i}.csv'),
+            internal_metric_data: dict  = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{i}',f'result_{persistence.lower()}_internal_{i}.csv'),
                                                             labels = knob_data['rowlabels'])
             
-            external_metric_data, _ = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{i}',f'result_{persistence.lower()}_external_{i}.csv'),
+            external_metric_data: dict  = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{i}',f'result_{persistence.lower()}_external_{i}.csv'),
                                                 labels = knob_data['rowlabels'],
                                                 metrics = ['Totals_Ops/sec', 'Totals_p99_Latency'])
             internal_metric_datas[f'workload{i}'] = internal_metric_data['data']
             external_metric_datas[f'workload{i}'] = external_metric_data['data']
+    
+    #for all train split
+    #external_metric_datas[f'workload{target_num}'] = target_external_data['data']
 
     internal_metric_datas['columnlabels'] = internal_metric_data['columnlabels']
     internal_metric_datas['rowlabels'] = internal_metric_data['rowlabels']
@@ -76,8 +82,9 @@ def dataPreprocessing(target_num, persistence,logger):
         'rowlabels'=array([1, 2, ..., 10000])}
     """
 
-    aggregated_IM_data = knobs.aggregateMetrics(internal_metric_datas)
-    aggregated_EM_data = knobs.aggregateMetrics(external_metric_datas)
+    aggregated_IM_data: dict = knobs.aggregateMetrics(internal_metric_datas)
+    aggregated_EM_data: dict = knobs.aggregateMetrics(external_metric_datas)
+
 
     """
     data = concat((workload2,...,workload18)) length = 10000 * N of workload
@@ -93,7 +100,7 @@ def dataPreprocessing(target_num, persistence,logger):
     return knob_data, aggregated_IM_data, aggregated_EM_data, target_external_data
 
 #Step 1
-def metricSimplification(metric_data, logger, args):
+def metricSimplification(metric_data: dict, logger: logging, args : argparse) -> list:
     matrix = metric_data['data']
     columnlabels = metric_data['columnlabels']
 
@@ -119,7 +126,7 @@ def metricSimplification(metric_data, logger, args):
     shuffle_indices = get_shuffle_indices(n_rows)
     shuffled_matrix = unique_matrix[shuffle_indices, :]
 
-    shuffled_matrix = MinMaxScaler().fit_transform(shuffled_matrix)
+    shuffled_matrix = RobustScaler().fit_transform(shuffled_matrix)
     #shuffled_matrix = StandardScaler().fit_transform(shuffled_matrix)
 
     #FactorAnalysis
@@ -161,7 +168,7 @@ def metricSimplification(metric_data, logger, args):
     return pruned_metrics
 
 
-def knobsRanking(knob_data, metric_data, mode, logger):
+def knobsRanking(knob_data: dict, metric_data: dict, mode: str, logger: logging) -> list:
     """
     knob_data : will be ranked by knobs_ranking
     metric_data : pruned metric_data by metric simplification
@@ -178,7 +185,7 @@ def knobsRanking(knob_data, metric_data, mode, logger):
     encoded_knob_matrix = knob_matrix
 
     # standardize values in each column to N(0, 1)
-    standardizer = StandardScaler()
+    standardizer = RobustScaler()
     standardized_knob_matrix = standardizer.fit_transform(encoded_knob_matrix)
     standardized_metric_matrix = standardizer.fit_transform(metric_matrix)
 
@@ -207,6 +214,28 @@ def prepareForTraining(opt, top_k_knobs, aggregated_EM_data, target_external_dat
         workload_info = json.load(f)
 
     workloads=np.array([])
+
+    # for workload in range(1,len(workload_info.keys())):
+    #     if workload != opt.target:
+    #         if len(workloads) == 0:
+    #             workloads = np.array(workload_info[str(workload)])
+    #         else:
+    #             workloads = np.vstack((workloads,np.array(workload_info[str(workload)])))
+    #     else:
+    #         target_workload = np.array(workload_info[str(workload)])
+
+    # top_k_knobs = pd.DataFrame(top_k_knobs['data'], columns = top_k_knobs['columnlabels'])
+    # aggregated_EM_data = pd.DataFrame(aggregated_EM_data['data'], columns = ['Totals_Ops/sec', 'Totals_p99_Latency'])
+    # workloads = np.vstack((workloads,target_workload))
+    # workload_infos = pd.DataFrame(workloads, columns = workload_info['info'])
+    # top_k_knobs['tmp'] = 1
+    # workload_infos['tmp'] = 1
+    # knobWithworkload = pd.merge(top_k_knobs,workload_infos,on=['tmp'])
+    # knobWithworkload = knobWithworkload.drop('tmp',axis=1)
+
+    # X_train, X_val, y_train, y_val = train_test_split(knobWithworkload, aggregated_EM_data, test_size = 0.4, random_state=42)
+    # X_val, X_test, y_val, y_test = train_test_split(X_val, y_val, test_size = 0.5, random_state=42)
+
     target_workload = np.array([])
     for workload in range(1,len(workload_info.keys())):
         if workload != opt.target:
@@ -233,13 +262,16 @@ def prepareForTraining(opt, top_k_knobs, aggregated_EM_data, target_external_dat
 
     X_train, X_val, y_train, y_val = train_test_split(knobWithworkload, aggregated_EM_data, test_size = 0.33, random_state=42)
 
-    scaler_X = MinMaxScaler().fit(X_train)
+    scaler_X = RobustScaler().fit(X_train)
     scaler_y = RobustScaler().fit(y_train)
 
     X_tr = scaler_X.transform(X_train).astype(np.float32)
     X_val = scaler_X.transform(X_val).astype(np.float32)
     y_tr = scaler_y.transform(y_train).astype(np.float32)
     y_val = scaler_y.transform(y_val).astype(np.float32)
+
+    # X_te = scaler_X.transform(X_test).astype(np.float32)
+    # y_te = scaler_y.transform(y_test).astype(np.float32)        
 
     X_te = scaler_X.transform(targetWorkload).astype(np.float32)
     y_te = scaler_y.transform(target_external_data).astype(np.float32)    
@@ -267,7 +299,7 @@ def prepareForTraining(opt, top_k_knobs, aggregated_EM_data, target_external_dat
         model['Totals_p99_Latency'] = RedisSingleDNN(opt.topk+5,1).to(DEVICE)
         optimizer['Totals_Ops_sec'] = AdamW(model['Totals_Ops_sec'].parameters(), lr = opt.lr, weight_decay = 0.01)
         optimizer['Totals_p99_Latency'] = AdamW(model['Totals_p99_Latency'].parameters(), lr = opt.lr, weight_decay = 0.01)
-    return model, optimizer, trainDataloader, valDataloader, testDataloader
+    return model, optimizer, trainDataloader, valDataloader, testDataloader, scaler_y
 
 
 def fitness_function(solution, args, model):

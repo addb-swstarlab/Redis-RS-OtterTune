@@ -190,3 +190,5 @@ Dockerfile
 /tuner/GA_logs/
 
 nohup.out
+
+tuner/results_grid.csv

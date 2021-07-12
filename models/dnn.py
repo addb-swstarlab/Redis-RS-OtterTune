@@ -5,19 +5,19 @@ class RedisSingleDNN(nn.Module):
         super(RedisSingleDNN, self).__init__()
         self.in_channel = in_channel
         self.out_channel = out_channel
-        self.fc1 = nn.Linear(self.in_channel,32)
-        self.fc1_1 = nn.Linear(32,64)
-        self.fc2 = nn.Linear(64,16)
-        self.fc3 = nn.Linear(16,self.out_channel)
-        self.relu = nn.Tanh()
+        self.fc1 = nn.Linear(self.in_channel,128)
+        self.fc2 = nn.Linear(128,256)
+        self.fc3 = nn.Linear(256,128)
+        self.fc4 = nn.Linear(128,self.out_channel)
+        self.tanh = nn.Tanh()
 
     def forward(self,X):
         X = X.float()
-        hidden1 = self.relu(self.fc1(X))
-        hidden1 = self.relu(self.fc1_1(hidden1))
-        hidden2 = self.relu(self.fc2(hidden1))
-        hidden3 = self.fc3(hidden2)
-        return hidden3
+        hidden1 = self.tanh(self.fc1(X))
+        hidden2 = self.tanh(self.fc2(hidden1))
+        hidden3 = self.tanh(self.fc3(hidden2))
+        hidden4 = self.fc4(hidden3)
+        return hidden4
 
 class RedisTwiceDNN(nn.Module):
     def __init__(self, in_channel, out_channel):
@@ -31,16 +31,15 @@ class RedisTwiceDNN(nn.Module):
         self.outs = []
         for _ in range(self.out_channel):
             self.outs.append(nn.Linear(self.in_channel,1))
-        self.relu = nn.ReLU()
-        self.af = [nn.Tanh(), nn.Sigmoid()]
+        self.tanh = nn.Tanh()
 
     def forward(self,X):
         X = X.float()
-        hidden1 = self.relu(self.fc1(X))
-        hidden2 = self.relu(self.fc2(hidden1))
-        hidden3 = self.relu(self.fc3(hidden2))
-        hidden4 = self.relu(self.fc4(hidden3))
+        hidden1 = self.tanh(self.fc1(X))
+        hidden2 = self.tanh(self.fc2(hidden1))
+        hidden3 = self.tanh(self.fc3(hidden2))
+        hidden4 = self.tanh(self.fc4(hidden3))
         outputs = []
-        for i, output in enumerate(self.outs):
-            outputs.append(self.af[i](output(hidden4)))
+        for _, output in enumerate(self.outs):
+            outputs.append(output(hidden4))
         return outputs

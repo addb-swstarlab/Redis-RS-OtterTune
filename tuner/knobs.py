@@ -1,11 +1,14 @@
 import os
 
+from typing import Tuple, List, Any
+from pandas.core.frame import DataFrame
+
 from sklearn.preprocessing import LabelEncoder
 
 import numpy as np
 import pandas as pd
 
-def knobs_make_dict(knobs_path):
+def knobs_make_dict(knobs_path: str) -> Tuple[dict,dict]:
     '''
         input: DataFrame form (samples_num, knobs_num)
         output: Dictionary form --> RDB and AOF
@@ -15,10 +18,9 @@ def knobs_make_dict(knobs_path):
 
         For mode selection knob, "yes" -> 1 , "no" -> 0
     '''
-    config_files = os.listdir(knobs_path)
+    config_files: List[str] = os.listdir(knobs_path)
 
-    dict_RDB = {}
-    dict_AOF = {}
+    dict_RDB, dict_AOF = {}, {}
     RDB_datas, RDB_columns, RDB_rowlabels = [], [], []
     AOF_datas, AOF_columns, AOF_rowlabels = [], [], []
     ISAOF = 0
@@ -27,9 +29,9 @@ def knobs_make_dict(knobs_path):
     for m in range(len(config_files)):
         flag = 0
         datas, columns = [], []
-        knob_path = os.path.join(knobs_path, 'config'+str(m+1)+'.conf')
+        knob_path: str = os.path.join(knobs_path, 'config'+str(m+1)+'.conf')
         f = open(knob_path, 'r')
-        config_file = f.readlines()
+        config_file: List[str] = f.readlines()
         knobs_list = config_file[62:]
         #knobs_list = config_file[config_file.index('\n')+1:]
         cnt = 1
@@ -76,7 +78,7 @@ def knobs_make_dict(knobs_path):
             columns.append("active-defrag-cycle-max")
             datas.append(75)
 
-        def str2Numbers(str):
+        def str2Numbers(str: str)-> Any:
             try:
                 number = int(str)
             except:
@@ -85,12 +87,10 @@ def knobs_make_dict(knobs_path):
 
         datas = list(map(str2Numbers,datas))
         if flag == ISRDB:
-    #         print('RDB')
             RDB_datas.append(datas)
             RDB_columns.append(columns)
             RDB_rowlabels.append(m+1-10000)
-        if flag == ISAOF: 
-    #         print('AOF')
+        elif flag == ISAOF: 
             AOF_datas.append(datas)
             AOF_columns.append(columns)
             AOF_rowlabels.append(m+1)
@@ -104,7 +104,7 @@ def knobs_make_dict(knobs_path):
     return dict_RDB, dict_AOF
 
 
-def aggregateMetrics(metric_datas):
+def aggregateMetrics(metric_datas: dict) -> dict:
     """
     Aggregate Internal Metrics from workloads in key 'data'.
     """
@@ -120,7 +120,7 @@ def aggregateMetrics(metric_datas):
     return aggregated_data
 
 
-def metric_preprocess(metrics):
+def metric_preprocess(metrics: DataFrame) -> Tuple[DataFrame, dict]:
     '''To invert for categorical internal metrics'''
     dict_le = {}
     c_metrics = metrics.copy()
@@ -132,7 +132,7 @@ def metric_preprocess(metrics):
             dict_le[col] = le
     return c_metrics, dict_le
 
-def metrics_make_dict(pd_metrics, labels):
+def metrics_make_dict(pd_metrics: DataFrame, labels: list):
     '''
         input: DataFrame form (samples_num, metrics_num)
         output: Dictionary form
@@ -157,17 +157,17 @@ def metrics_make_dict(pd_metrics, labels):
     return dict_metrics    
     
 
-def load_metrics(metric_path = ' ', labels = [], metrics=None):
+def load_metrics(metric_path: str, labels: np.array, metrics: list=None) -> dict:
     """ 
     If metrics is None, it means internal metrics.
     """
     if metrics is None:
         pd_metrics = pd.read_csv(metric_path)
-        pd_metrics, dict_le = metric_preprocess(pd_metrics)
-        return metrics_make_dict(pd_metrics, labels), dict_le
+        pd_metrics, _ = metric_preprocess(pd_metrics)
+        return metrics_make_dict(pd_metrics, labels)
     else:
         pd_metrics = pd.read_csv(metric_path)
-        return metrics_make_dict(pd_metrics[metrics], labels), None
+        return metrics_make_dict(pd_metrics[metrics], labels)
 
-def load_knobs(knobs_path):
+def load_knobs(knobs_path: str)->Tuple[dict,dict]:
     return knobs_make_dict(knobs_path)
