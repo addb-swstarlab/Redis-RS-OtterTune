@@ -19,6 +19,7 @@ def knobs_make_dict(knobs_path: str) -> Tuple[dict,dict]:
         For mode selection knob, "yes" -> 1 , "no" -> 0
     '''
     config_files: List[str] = os.listdir(knobs_path)
+    #config_files: List[str] = [0]*1000
 
     dict_RDB, dict_AOF = {}, {}
     RDB_datas, RDB_columns, RDB_rowlabels = [], [], []

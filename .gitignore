@@ -192,3 +192,5 @@ Dockerfile
 nohup.out
 
 tuner/results_grid.csv
+
+*.csv

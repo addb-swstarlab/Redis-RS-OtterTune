@@ -126,8 +126,8 @@ def metricSimplification(metric_data: dict, logger: logging, args : argparse) ->
     shuffle_indices = get_shuffle_indices(n_rows)
     shuffled_matrix = unique_matrix[shuffle_indices, :]
 
-    shuffled_matrix = RobustScaler().fit_transform(shuffled_matrix)
-    #shuffled_matrix = StandardScaler().fit_transform(shuffled_matrix)
+    #shuffled_matrix = RobustScaler().fit_transform(shuffled_matrix)
+    shuffled_matrix = StandardScaler().fit_transform(shuffled_matrix)
 
     #FactorAnalysis
     fa_model = FactorAnalysis()
@@ -185,7 +185,8 @@ def knobsRanking(knob_data: dict, metric_data: dict, mode: str, logger: logging)
     encoded_knob_matrix = knob_matrix
 
     # standardize values in each column to N(0, 1)
-    standardizer = RobustScaler()
+    #standardizer = RobustScaler()
+    standardizer = StandardScaler()
     standardized_knob_matrix = standardizer.fit_transform(encoded_knob_matrix)
     standardized_metric_matrix = standardizer.fit_transform(metric_matrix)
 
@@ -262,8 +263,11 @@ def prepareForTraining(opt, top_k_knobs, aggregated_EM_data, target_external_dat
 
     X_train, X_val, y_train, y_val = train_test_split(knobWithworkload, aggregated_EM_data, test_size = 0.33, random_state=42)
 
-    scaler_X = RobustScaler().fit(X_train)
-    scaler_y = RobustScaler().fit(y_train)
+    # scaler_X = RobustScaler().fit(X_train)
+    # scaler_y = RobustScaler().fit(y_train)
+
+    scaler_X = StandardScaler().fit(X_train)
+    scaler_y = StandardScaler().fit(y_train)
 
     X_tr = scaler_X.transform(X_train).astype(np.float32)
     X_val = scaler_X.transform(X_val).astype(np.float32)
@@ -302,7 +306,7 @@ def prepareForTraining(opt, top_k_knobs, aggregated_EM_data, target_external_dat
     return model, optimizer, trainDataloader, valDataloader, testDataloader, scaler_y
 
 
-def fitness_function(solution, args, model):
+def sinlge_fitness_function(solution, args, model):
     solDataset = RedisDataset(solution,np.zeros((len(solution),2)))
     solDataloader = DataLoader(solDataset,shuffle=False,batch_size=args.n_pool,collate_fn=utils.collate_function)
 
@@ -319,6 +323,25 @@ def fitness_function(solution, args, model):
                 fitness = np.vstack([fitness,fitness_batch])
     return np.array(fitness)
 
+def twice_fitness_function(solution, args, model):
+    solDataset = RedisDataset(solution,np.zeros((len(solution),2)))
+    solDataloader = DataLoader(solDataset,shuffle=False,batch_size=args.n_pool,collate_fn=utils.collate_function)
+
+    model.eval()
+
+    fitness = np.array([])
+    with torch.no_grad():
+        for _, batch in enumerate(solDataloader):
+            knobs_with_info = batch[0].to(DEVICE)
+            fitness_batch = np.array([o.detach().cpu().numpy() for o in model(knobs_with_info)])
+            #fitness_batch = model(knobs_with_info)
+            if len(fitness) == 0:
+                fitness = fitness_batch
+            else:
+                fitness = np.vstack([fitness,fitness_batch])
+
+    return np.reshape(np.squeeze(fitness,axis=-1),(args.n_pool,2))
+
 
 def prepareForGA(args,top_k_knobs):
     with open("../data/workloads_info.json",'r') as f:
@@ -331,8 +354,12 @@ def prepareForGA(args,top_k_knobs):
     elif args.persistence == "AOF":
         _, knob_data = knobs.load_knobs(knobs_path)
 
-    target_external_data, _ = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{args.target}',f'result_{args.persistence.lower()}_external_{args.target}.csv'),
+    target_external_data = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{args.target}',f'result_{args.persistence.lower()}_external_{args.target}.csv'),
                                     labels = knob_data['rowlabels'],
+                                    metrics = ['Totals_Ops/sec', 'Totals_p99_Latency'])
+
+    target_default_external_data = knobs.load_metrics(metric_path = os.path.join(DATA_PATH,f'workload{args.target}',f'result_{args.persistence.lower()}_external_default_{args.target}.csv'),
+                                    labels = range(5),
                                     metrics = ['Totals_Ops/sec', 'Totals_p99_Latency'])
     
     top_k_knobs = pd.DataFrame(knob_data['data'], columns = knob_data['columnlabels'])[top_k_knobs]                                 
@@ -345,7 +372,9 @@ def prepareForGA(args,top_k_knobs):
     knobWithworkload = pd.merge(top_k_knobs,target_workload_infos,on=['tmp'])
     knobWithworkload = knobWithworkload.drop('tmp',axis=1)
 
-    scaler_X = MinMaxScaler().fit(knobWithworkload)
-    scaler_y = StandardScaler().fit(target_external_data)
+    scaler_X = RobustScaler().fit(knobWithworkload)
+    scaler_y = RobustScaler().fit(target_external_data)
 
-    return knobWithworkload, target_external_data, scaler_X, scaler_y
+    deafult = np.sum(np.array(target_default_external_data['data']),axis = 0)/5
+
+    return knobWithworkload, target_external_data, deafult, scaler_X, scaler_y
