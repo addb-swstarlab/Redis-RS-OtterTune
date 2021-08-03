@@ -9,9 +9,10 @@ class Config():
         self.n_epochs = n_epochs
         self.lr = lr
 
-    def save_results(self,taget_workload, best_epoch, best_th_loss, best_la_loss, best_th_mae_loss, best_la_mae_loss, model_path, log_dir):
+    def save_results(self,taget_workload, best_th_epoch, best_la_epoch, best_th_loss, best_la_loss, best_th_mae_loss, best_la_mae_loss, model_path, log_dir):
         self.target = taget_workload
-        self.best_epoch = best_epoch
+        self.best_th_epoch = best_th_epoch
+        self.best_la_epoch = best_la_epoch
         self.best_th_mse = best_th_loss
         self.best_la_mse = best_la_loss
         self.best_th_mae = best_th_mae_loss

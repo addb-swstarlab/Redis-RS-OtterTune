@@ -2,6 +2,7 @@
 """
 Train the model
 """
+from collections import defaultdict
 import os
 import sys
 import copy
@@ -18,7 +19,7 @@ from trainer import train
 from config import Config
 
 sys.path.append('../')
-from models.steps import (dataPreprocessing, metricSimplification, knobsRanking, prepareForTraining, )
+from models.steps import (dataPreprocessing, metricSimplification, knobsRanking, prepareForTraining, set_model)
 
 
 parser = argparse.ArgumentParser()
@@ -47,7 +48,7 @@ def main(opt: argparse , logger: logging, log_dir: str) -> Config:
 
     logger.info("Target workload name is {}".format(opt.target))
 
-    knob_data, aggregated_IM_data, aggregated_EM_data, target_external_data = dataPreprocessing(opt.target, opt.persistence,logger)
+    knob_data, aggregated_IM_data, aggregated_ops_data, aggregated_latency_data , Ops_target_external_data, latency_target_external_data = dataPreprocessing(opt.target, opt.persistence,logger)
 
     logger.info("====================== Metrics_Simplification ====================\n")
     pruned_metrics = metricSimplification(aggregated_IM_data, logger, opt)
@@ -82,20 +83,28 @@ def main(opt: argparse , logger: logging, log_dir: str) -> Config:
     logger.info("Knob save path : {}".format(knob_save_path))
     logger.info("Choose Top {} knobs : {}".format(top_k,top_k_knobs['columnlabels']))
     np.save(os.path.join(knob_save_path,'knobs_{}.npy'.format(top_k)),np.array(top_k_knobs['columnlabels']))
+    aggregated_data = [aggregated_ops_data, aggregated_latency_data]
+    target_external_data =[Ops_target_external_data, latency_target_external_data]
 
-    model, optimizer, trainDataloader, valDataloader, testDataloader, scaler_y = prepareForTraining(opt, top_k_knobs, aggregated_EM_data, target_external_data)
-    
-    logger.info("====================== {} Pre-training Stage ====================\n".format(opt.model_mode))
+    model, optimizer = set_model(opt)
+    model_save_path = utils.make_date_dir("./model_save")
+    logger.info("Model save path : {}".format(model_save_path))
+    logger.info("Learning Rate : {}".format(opt.lr))
+    best_epoch = defaultdict(int)
+    best_loss = defaultdict(float)
+    best_mae = defaultdict(float)
+    columns=['Totals_Ops/sec','Totals_p99_Latency']
+    for i in range(2):
+        trainDataloader, valDataloader, testDataloader, scaler_y = prepareForTraining(opt, top_k_knobs, aggregated_data[i], target_external_data[i],i)
+        
+        logger.info("====================== {} Pre-training Stage ====================\n".format(opt.model_mode))
 
-    best_epoch, best_th_loss, best_la_loss, best_th_mae_loss, best_la_mae_loss, model_path = train(model, trainDataloader, valDataloader, testDataloader, optimizer, scaler_y, opt, logger)
-    if opt.model_mode in ['single', 'twice']:
-        logger.info("\n\n[Best Epoch {}] Best_th_Loss : {} Best_la_Loss : {} Best_th_MAE : {} Best_la_MAE : {}".format(best_epoch, best_th_loss, best_la_loss, best_th_mae_loss, best_la_mae_loss))
-    elif opt.model_mode == 'double':
-        for name in best_epoch.keys():
-            logger.info("\n\n[{} Best Epoch {}] Best_Loss : {} Best_MAE : {}".format(name, best_epoch[name], best_loss[name], best_mae[name]))
+        best_epoch[columns[i]], best_loss[columns[i]], best_mae[columns[i]] = train(model, trainDataloader, valDataloader,testDataloader, optimizer, scaler_y, opt, logger, model_save_path,i)
+    for name in best_epoch.keys():
+        logger.info("\n\n[{} Best Epoch {}] Best_Loss : {} Best_MAE : {}".format(name, best_epoch[name], best_loss[name], best_mae[name]))
     
     config = Config(opt.persistence,opt.db,opt.cluster,opt.rki,opt.topk,opt.model_mode,opt.n_epochs,opt.lr)
-    config.save_results(opt.target, best_epoch, best_th_loss, best_la_loss, best_th_mae_loss, best_la_mae_loss, model_path, log_dir)
+    config.save_results(opt.target, best_epoch['Totals_Ops/sec'], best_epoch[name], best_loss['Totals_Ops/sec'], best_loss[name], best_mae['Totals_Ops/sec'], best_mae[name], model_save_path, log_dir)
 
     return config
 
