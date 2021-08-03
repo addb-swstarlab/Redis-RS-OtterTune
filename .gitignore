@@ -194,3 +194,17 @@ nohup.out
 tuner/results_grid.csv
 
 *.csv
+
+!/tuner/EDA*
+
+/tuner/*.png
+
+/tuner/GA_config
+
+/Double/data
+
+/Double/tuner/model_save
+/Double/tuner/log
+/Double/tuner/save_knobs
+
+__init__.py
