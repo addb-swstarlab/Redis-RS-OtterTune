@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import time, os
+import time, os, sys
 import pickle, json
 import logging
 import datetime
@@ -108,7 +108,7 @@ def knobs_make_dict(knobs_path):
         flag = 0
         datas = []
         columns = []
-        knob_path = os.path.join(knobs_path, 'config'+str(m+1)+'.conf')
+        knob_path = os.path.join(knobs_path, 'config'+str(m+1+1000)+'.conf')
         f = open(knob_path, 'r')
         config_file = f.readlines()
         knobs_list = config_file[config_file.index('\n')+1:]
@@ -170,7 +170,7 @@ def knobs_make_dict(knobs_path):
     dict_RDB['columnlabels'] = np.array(RDB_columns[0])
     dict_AOF['data'] = np.array(AOF_datas)
     dict_AOF['rowlabels'] = np.array(AOF_rowlabels)
-    dict_AOF['columnlabels'] = np.array(AOF_columns[0])
+    # dict_AOF['columnlabels'] = np.array(AOF_columns[0])
     return dict_RDB, dict_AOF
 
 def metrics_make_dict(pd_metrics, labels):
@@ -185,6 +185,7 @@ def metrics_make_dict(pd_metrics, labels):
     
     dict_metrics = {}
     tmp_rowlabels = [_-1 for _ in labels]
+ 
     pd_metrics = pd_metrics.iloc[tmp_rowlabels][:]
     nan_columns = pd_metrics.columns[pd_metrics.isnull().any()]
     pd_metrics = pd_metrics.drop(columns=nan_columns)
@@ -247,8 +248,8 @@ def get_ranked_knob_data(ranked_knobs, knob_data, top_k):
     return ranked_knob_data
 
 def convert_dict_to_conf(rec_config, persistence):
-    f = open('../data/redis_data/init_config.conf', 'r')
-    json_configs_path = '../data/redis_data/'+persistence+'_knobs.json'
+    f = open('../data/init_config.conf', 'r')
+    json_configs_path = '../data/'+persistence+'_knobs.json'
     with open(json_configs_path, 'r') as j:
         json_configs = json.load(j)
 
@@ -279,7 +280,7 @@ def convert_dict_to_conf(rec_config, persistence):
                 elif dict_config[k] >= 1 : dict_config[k] = 'yes'
             else:
                 if dict_config[k] == 0: dict_config[k] = 'no'
-                elif dict_config[k] == 1: dict_config[k] = 'yes'
+                elif dict_config[k] >= 1: dict_config[k] = 'yes'
         if k == 'appendfsync':
             if dict_config[k] == 0: dict_config[k] = 'always'
             elif dict_config[k] == 1: dict_config[k] = 'everysec'
@@ -302,7 +303,7 @@ def convert_dict_to_conf(rec_config, persistence):
         for s in range(len(save_sec)):
             config_list.append('save ' + str(save_sec[s]) + ' ' + str(save_changes[s]) + '\n')
     i = 0
-    PATH = '../data/redis_data/config_results/{}'.format(persistence)
+    PATH = '../data/config_results/{}'.format(persistence)
     NAME = persistence+'_rec_config{}.conf'.format(i)
     while os.path.exists(os.path.join(PATH,NAME)):
         i+=1
@@ -313,7 +314,7 @@ def convert_dict_to_conf(rec_config, persistence):
 
 def config_exist(persistence):
     i = 0
-    PATH = '../data/redis_data/config_results/{}'.format(persistence)
+    PATH = '../data/config_results/{}'.format(persistence)
     NAME = persistence+'_rec_config{}.conf'.format(i)
     while os.path.exists(os.path.join(PATH,NAME)):
         i+=1
@@ -323,6 +324,7 @@ def config_exist(persistence):
 
 
 from sklearn.preprocessing import StandardScaler
+sys.path.append('../')
 from models.util import DataUtil
 
 
@@ -455,7 +457,7 @@ def process_training_data(target_knob, target_metric, db_type, data_type):
     X_max = np.empty(X_scaled.shape[1])
     X_scaler_matrix = np.zeros([1, X_scaled.shape[1]])
 
-    with open(os.path.join("../data/{}_data".format(db_type),data_type+"_knobs.json"), "r") as data:
+    with open(os.path.join("../data/RDB_knobs.json"), "r") as data:
         session_knobs = json.load(data)
 
     # Set min/max for knob values

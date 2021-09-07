@@ -263,9 +263,9 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
         raise Exception("gp_type should be one of (numpy and scikit)")
 
     best_config_idx = np.argmax(res.ravel())
-    if len(set(res.ravel()))==1:
-        logger.info("FAIL TRAIN")
-        return False, -float('inf'), None
+    # if len(set(res.ravel()))==1:
+    #     logger.info("FAIL TRAIN")
+    #     return False, -float('inf'), None
     best_config = X_samples[best_config_idx, :]
     best_config = X_scaler.inverse_transform(best_config)
     X_min_inv = X_scaler.inverse_transform(X_min)

@@ -11,10 +11,11 @@ sys.path.append('../')
 ##TODO: we can use environment after...
 import environment
 import copy
+from sklearn.model_selection import train_test_split
 
 from models.steps import (run_workload_characterization, run_knob_identification, configuration_recommendation)
 
-DATA_PATH = "../data/redis_data"
+DATA_PATH = "../data"
 
 if __name__ == '__main__':
 
@@ -25,7 +26,7 @@ if __name__ == '__main__':
     # parser.add_argument('--instance', type=str, default='mysql', help='Choose MySQL Instance')
     parser.add_argument('--persistence', type=str, choices=["RDB","AOF"], default='RDB', help='Choose Persistant Methods')
     parser.add_argument("--db",type=str, choices=["redis","rocksdb"], default='redis', help="DB type")
-    parser.add_argument("--rki",type=str, default='lasso', help = "knob_identification mode")
+    parser.add_argument("--rki",type=str, default='XGB', help = "knob_identification mode")
     parser.add_argument("--gp", type=str, default="numpy")
 
     opt = parser.parse_args()
@@ -80,12 +81,12 @@ if __name__ == '__main__':
     # else:
     #     assert False, 'Choose workload write or readwrite'
 
-    internal_metrics_path = os.path.join(DATA_PATH ,"result" ,"{}workload/result_internal_total.csv".format(opt.target))
-    external_metrics_path = os.path.join(DATA_PATH ,"result" ,"{}workload/result_external_total.csv".format(opt.target))
+    internal_metrics_path = os.path.join(DATA_PATH ,"result_rdb_internal.csv")
+    external_metrics_path = os.path.join(DATA_PATH ,"result_rdb_external.csv")
 
-    logger.info("####################Target workload name is {}".format(opt.workload))
+    # logger.info("####################Target workload name is {}".format(opt.workload))
 
-    knobs_path = os.path.joint(DATA_PATH, "configs")
+    knobs_path = os.path.join(DATA_PATH, "configs")
 
     if opt.persistence == "RDB":
         knob_data, _ = utils.load_knobs(knobs_path)
@@ -94,12 +95,12 @@ if __name__ == '__main__':
 
     logger.info("Fin Load Knob_data")
 
-    # train_knob_data = {}
-    # test_knob_data = {}
-    # train_internal_data = {}
-    # test_internal_data = {}
-    # train_external_data = {}
-    # test_external_data = {}
+    train_knob_data = {}
+    test_knob_data = {}
+    train_internal_data = {}
+    test_internal_data = {}
+    train_external_data = {}
+    test_external_data = {}
     
     internal_metric_data, dict_le_in = utils.load_metrics(m_path = internal_metrics_path,
                                                  labels = knob_data['rowlabels'],
@@ -113,19 +114,19 @@ if __name__ == '__main__':
                                                 mode = 'external')
     logger.info("Fin Load external_metrics_data")
 
-    # train_knob_data['data'], test_knob_data['data'] = train_test_split(knob_data['data'],test_size=0.5,shuffle=True,random_state=1004)
-    # train_knob_data['rowlabels'], test_knob_data['rowlabels'] = train_test_split(knob_data['rowlabels'],test_size=0.5,shuffle=True,random_state=1004)
-    # train_knob_data['columnlabels'], test_knob_data['columnlabels'] = knob_data['columnlabels'], knob_data['columnlabels']
+    train_knob_data['data'], test_knob_data['data'] = train_test_split(knob_data['data'],test_size=0.5,shuffle=True,random_state=1004)
+    train_knob_data['rowlabels'], test_knob_data['rowlabels'] = train_test_split(knob_data['rowlabels'],test_size=0.5,shuffle=True,random_state=1004)
+    train_knob_data['columnlabels'], test_knob_data['columnlabels'] = knob_data['columnlabels'], knob_data['columnlabels']
 
-    # train_internal_data['data'], test_internal_data['data'] = train_test_split(internal_metric_data['data'],test_size=0.5,shuffle=True,random_state=1004)
-    # train_internal_data['rowlabels'], test_internal_data['rowlabels'] = train_test_split(internal_metric_data['rowlabels'],test_size=0.5,shuffle=True,random_state=1004)
-    # train_internal_data['columnlabels'], test_internal_data['columnlabels'] = internal_metric_data['columnlabels'], internal_metric_data['columnlabels']
+    train_internal_data['data'], test_internal_data['data'] = train_test_split(internal_metric_data['data'],test_size=0.5,shuffle=True,random_state=1004)
+    train_internal_data['rowlabels'], test_internal_data['rowlabels'] = train_test_split(internal_metric_data['rowlabels'],test_size=0.5,shuffle=True,random_state=1004)
+    train_internal_data['columnlabels'], test_internal_data['columnlabels'] = internal_metric_data['columnlabels'], internal_metric_data['columnlabels']
 
-    # train_external_data['data'], test_external_data['data'] = train_test_split(external_metric_data['data'],test_size=0.5,shuffle=True,random_state=1004)
-    # train_external_data['rowlabels'], test_external_data['rowlabels'] = train_test_split(external_metric_data['rowlabels'],test_size=0.5,shuffle=True,random_state=1004)
-    # train_external_data['columnlabels'] = external_metric_data['columnlabels']
-    # test_external_data['columnlabels'] = external_metric_data['columnlabels']
-    # assert all(train_knob_data['rowlabels']==train_internal_data['rowlabels'])
+    train_external_data['data'], test_external_data['data'] = train_test_split(external_metric_data['data'],test_size=0.5,shuffle=True,random_state=1004)
+    train_external_data['rowlabels'], test_external_data['rowlabels'] = train_test_split(external_metric_data['rowlabels'],test_size=0.5,shuffle=True,random_state=1004)
+    train_external_data['columnlabels'] = external_metric_data['columnlabels']
+    test_external_data['columnlabels'] = external_metric_data['columnlabels']
+    assert all(train_knob_data['rowlabels']==train_internal_data['rowlabels'])
 
     # print(f'{opt.persistence} knob data = {len(knob_data)}, {knob_data.keys()}, {knob_data}')
     # print(f'{opt.persistence} metric data = {len(metric_data)}, {metric_data.keys()}, {metric_data}')
@@ -167,7 +168,7 @@ if __name__ == '__main__':
 
     ### RECOMMENDATION STAGE ###
     ##TODO: choose k like incremental 4, 8, 16, ...
-    top_ks = range(4,13)
+    top_ks = [5, 10, 15, 19]
     best_recommend = -float('inf')
     best_topk = None
     best_conf_map = None
@@ -180,13 +181,13 @@ if __name__ == '__main__':
         ## TODO: params(GP option) and will offer opt all
         FIN,recommend,conf_map = configuration_recommendation(ranked_test_knob_data,test_external_data, logger, opt.gp, opt.db, opt.persistence)
 
-        if recommend > best_recommend and FIN:
-            best_recommend = recommend
-            best_topk = top_k
-            best_conf_map = conf_map
-    logger.info("Best top_k")
-    logger.info(best_topk)
-    print(best_topk)
-    utils.convert_dict_to_conf(best_conf_map, opt.persistence)
+        # if recommend > best_recommend and FIN:
+        #     best_recommend = recommend
+        #     best_topk = top_k
+        #     best_conf_map = conf_map
+        # logger.info("Best top_k")
+        # logger.info(best_topk)
+        # print(best_topk)
+        utils.convert_dict_to_conf(conf_map, opt.persistence)
 
     print("END TRAIN")
