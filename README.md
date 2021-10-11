@@ -1,6 +1,7 @@
 # RS-OtterTune
 
 Automatic Parameters Tuning System for Redis based on Non-linear machine learning methods.
+
 ![model_architecture](./img/rs-ottertune.jpg)
 
 ## Environments
@@ -29,3 +30,12 @@ If you want to know more, this is a list of selected starting points:
 - Try Redis directly inside your browser. [http://try.redis.io](http://try.redis.io/)
 - The full list of Redis commands. http://redis.io/commands
 - There is much more inside the Redis official documentation. http://redis.io/documentation
+
+## Workloads
+
+- \# of Requests: 1,000,000
+- Key size of key-value data: 16 B
+- Value size of key-value data: 128 B
+- Read:Write Ratio
+  - 1:0 (Write-Only)
+  - 1:1
