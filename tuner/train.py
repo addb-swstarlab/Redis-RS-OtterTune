@@ -8,8 +8,6 @@ import sys
 import utils
 import argparse
 sys.path.append('../')
-##TODO: we can use environment after...
-import environment
 import copy
 from sklearn.model_selection import train_test_split
 
@@ -23,7 +21,6 @@ if __name__ == '__main__':
     parser.add_argument('--tencent', action='store_true', help='Use Tencent Server')
     parser.add_argument('--params', type=str, default='', help='Load existing parameters')
     parser.add_argument('--target', type=int, default= 1, help='Workload type')
-    # parser.add_argument('--instance', type=str, default='mysql', help='Choose MySQL Instance')
     parser.add_argument('--persistence', type=str, choices=["RDB","AOF"], default='RDB', help='Choose Persistant Methods')
     parser.add_argument("--db",type=str, choices=["redis","rocksdb"], default='redis', help="DB type")
     parser.add_argument("--rki",type=str, default='XGB', help = "knob_identification mode")
@@ -35,18 +32,6 @@ if __name__ == '__main__':
 
     if not os.path.exists('logs'):
         os.mkdir('logs')
-
-    # # Create Environment
-    # if opt.tencent:
-    #     env = environment.TencentServer(
-    #         wk_type=opt.workload,
-    #         instance_name=opt.instance,
-    #         method=opt.benchmark,
-    #         num_metric=opt.metric_num,
-    #         num_other_knobs=opt.other_knob)
-    # else:
-    #     env = environment.Server(wk_type=opt.workload, instance_name=opt.instance)
-
 
     if not os.path.exists('save_knobs'):
         os.mkdir('save_knobs')
@@ -188,6 +173,8 @@ if __name__ == '__main__':
         # logger.info("Best top_k")
         # logger.info(best_topk)
         # print(best_topk)
+
+        ## Generate Best Configuration file for Redis
         utils.convert_dict_to_conf(conf_map, opt.persistence)
 
     print("END TRAIN")

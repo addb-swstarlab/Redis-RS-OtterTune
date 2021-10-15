@@ -259,6 +259,7 @@ def convert_dict_to_conf(rec_config, persistence):
 
     config_list = f.readlines()
     save_f = False
+
     categorical_knobs = ['appendonly', 'no-appendfsync-on-rewrite', 'aof-rewrite-incremental-fsync',
                          'aof-use-rdb-preamble', 'rdbcompression', 'rdbchecksum', 
                          'rdb-save-incremental-fsync', 'activedefrag', 'activerehashing']
@@ -328,31 +329,7 @@ sys.path.append('../')
 from models.util import DataUtil
 
 
-def process_training_data(target_knob, target_metric, db_type, data_type):
-    # Load mapped workload data
-    # TODO: If we have mapped_workload, we will use this code
-    
-    # if target_data['mapped_workload'] is not None:
-        # mapped_workload_id = target_data['mapped_workload'][0]
-        # mapped_workload = Workload.objects.get(pk=mapped_workload_id)
-        # workload_knob_data = PipelineData.objects.get(
-        #     pipeline_run=latest_pipeline_run,
-        #     workload=mapped_workload,
-        #     task_type=PipelineTaskType.KNOB_DATA)
-        # workload_knob_data = JSONUtil.loads(workload_knob_data.data)
-        # workload_metric_data = PipelineData.objects.get(
-        #     pipeline_run=latest_pipeline_run,
-        #     workload=mapped_workload,
-        #     task_type=PipelineTaskType.METRIC_DATA)
-        # workload_metric_data = JSONUtil.loads(workload_metric_data.data)
-        # cleaned_workload_knob_data = DataUtil.clean_knob_data(workload_knob_data["data"],
-        #                                                       workload_knob_data["columnlabels"],
-        #                                                       [newest_result.session])
-        # X_workload = np.array(cleaned_workload_knob_data[0])
-        # X_columnlabels = np.array(cleaned_workload_knob_data[1])
-        # y_workload = np.array(workload_metric_data['data'])
-        # y_columnlabels = np.array(workload_metric_data['columnlabels'])
-        # rowlabels_workload = np.array(workload_metric_data['rowlabels'])
+def process_training_data(target_knob, target_metric):
     if False:
         pass
     else:
