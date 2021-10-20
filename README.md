@@ -10,7 +10,9 @@ Automatic Parameters Tuning System for Redis based on Non-linear machine learnin
 - pytorch: 1.7.1
 - redis: 5.0.2
 - memtier_benchmark
-- Ubuntu
+- OS: Ubuntu 16.04.7 LTS (in GCP)
+- CPU: Intel® Xeon® CPU @ 2.00GHz
+- RAM: DIMM 16G
 
 ## What is Redis?
 
@@ -39,3 +41,9 @@ If you want to know more, this is a list of selected starting points:
 - Read:Write Ratio
   - 1:0 (Write-Only)
   - 1:1
+
+## Redis-Data-Generation
+
+Since there is no available Redis workload dataset, it is required to carry out a step of generating data samples required for training.
+
+https://github.com/addb-swstarlab/redis-sample-generation
