@@ -30,8 +30,6 @@ KNOB_DETAILS = None
 EXTENDED_KNOBS = None
 num_knobs = len(KNOBS)
 
-
-
 def get_init_knobs():
 
     knobs = {}

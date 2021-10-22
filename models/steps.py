@@ -213,29 +213,7 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
     X_samples = np.empty((num_samples, X_scaled.shape[1]))
     for i in range(X_scaled.shape[1]):
         X_samples[:, i] = np.random.rand(num_samples) * (X_max[i] - X_min[i]) + X_min[i]
-
-    # q = queue.PriorityQueue()
-    # for x in range(0, y_scaled.shape[0]):
-    #     q.put((y_scaled[x][0], x))
-
-    # ## TODO : What...?
-    # i = 0
-    # while i < params['TOP_NUM_CONFIG']:
-    #     try:
-    #         item = q.get_nowait()
-    #         # Tensorflow get broken if we use the training data points as
-    #         # starting points for GPRGD. We add a small bias for the
-    #         # starting points. GPR_EPS default value is 0.001
-    #         # if the starting point is X_max, we minus a small bias to
-    #         # make sure it is within the range.
-    #         dist = sum(np.square(X_max - X_scaled[item[1]]))
-    #         if dist < 0.001:
-    #             X_samples = np.vstack((X_samples, X_scaled[item[1]] - abs(params['GPR_EPS'])))
-    #         else:
-    #             X_samples = np.vstack((X_samples, X_scaled[item[1]] + abs(params['GPR_EPS'])))
-    #         i = i + 1
-    #     except queue.Empty:
-    #         break
+        
     res = None
     if gp_type == 'numpy':
         # DO GPRNP
