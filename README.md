@@ -47,3 +47,13 @@ If you want to know more, this is a list of selected starting points:
 Since there is no available Redis workload dataset, it is required to carry out a step of generating data samples required for training.
 
 https://github.com/addb-swstarlab/redis-sample-generation
+
+## How to run?
+
+To run RS-OtterTune just type:
+
+```bash
+$ python tuner/train.py --target <workload_num> --persistence <RDB or AOF> --rki <lasso, RF, XGB> 
+```
+
+By taking the best configuration file from the command above, execute the Redis server.
