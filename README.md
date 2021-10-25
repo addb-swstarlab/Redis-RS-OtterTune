@@ -57,3 +57,21 @@ $ python tuner/train.py --target <workload_num> --persistence <RDB or AOF> --rki
 ```
 
 By taking the best configuration file from the command above, execute the Redis server.
+
+## Paper
+
+Will update after acceptance journal
+
+[Previous Study](https://www.eiric.or.kr/literature/ser_view.php?searchCate=literature&SnxGubun=INKO&mode=total&literature=Y&SnxGubun=INME&gu=INME000G2&cmd=qryview&SnxIndxNum=237774&q1_yy=2021&q1_mm=06&rownum=2&f1=MN&q1=Jieun%20Lee&totalCnt=21&kci=)
+
+## Reference
+
+```
+@inproceedings{van2017automatic,
+  title={Automatic database management system tuning through large-scale machine learning},
+  author={Van Aken, Dana and Pavlo, Andrew and Gordon, Geoffrey J and Zhang, Bohan},
+  booktitle={Proceedings of the 2017 ACM International Conference on Management of Data},
+  pages={1009--1024},
+  year={2017}
+}
+```
