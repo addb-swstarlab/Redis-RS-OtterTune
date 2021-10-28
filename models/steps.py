@@ -18,8 +18,6 @@ import utils
 
 
 def run_workload_characterization(metric_data):
-    ##TODO: modift after workload generation.
-
     matrix = metric_data['data']
     columnlabels = metric_data['columnlabels']
 
@@ -32,7 +30,6 @@ def run_workload_characterization(metric_data):
     nonconst_columnlabels = []
     for col, (_,v) in zip(matrix.T, enumerate(columnlabels)):
         if np.any(col != col[0]):
-            #print(col.reshape(-1, 1))
             nonconst_matrix.append(col.reshape(-1, 1))
             nonconst_columnlabels.append(v)
     assert len(nonconst_matrix) > 0, "Need more data to train the model"
@@ -57,7 +54,6 @@ def run_workload_characterization(metric_data):
     components = fa_model.components_.T.copy()
 
     kmeans_models = KMeansClusters()
-    ##TODO: Check Those Options
     kmeans_models.fit(components, min_cluster=1,
                       max_cluster=min(n_cols - 1, 20),
                       sample_labels=unique_columnlabels,
@@ -75,9 +71,7 @@ def run_workload_characterization(metric_data):
     return pruned_metrics
 
 
-def run_knob_identification(knob_data,metric_data,mode, logger):
-    # TODO: type filter for Redis, RocksDB 
-    
+def run_knob_identification(knob_data,metric_data,mode, logger):  
     knob_matrix = knob_data['data']
     knob_columnlabels = knob_data['columnlabels']
 
@@ -131,7 +125,6 @@ def run_workload_mapping(knob_data, metric_data, target_knob, target_metric, par
     '''
     #knob_data["data"],knob_data["columnlabels"] = DataUtil.clean_knob_data(knob_data["data"],knob_data["columnlabels"])
 
-    ##TODO: Will change dict to something
     X_matrix = np.array(knob_data["data"])
     y_matrix = np.array(metric_data["data"])
     #rowlabels to np.arange(X_matrix.shape[0])
@@ -213,7 +206,7 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
     X_samples = np.empty((num_samples, X_scaled.shape[1]))
     for i in range(X_scaled.shape[1]):
         X_samples[:, i] = np.random.rand(num_samples) * (X_max[i] - X_min[i]) + X_min[i]
-        
+
     res = None
     if gp_type == 'numpy':
         # DO GPRNP
