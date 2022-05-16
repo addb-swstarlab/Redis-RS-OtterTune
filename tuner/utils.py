@@ -138,12 +138,13 @@ def knobs_make_dict(knobs_path):
                         d = ["no", "yes"].index(d)
                     elif d in ["always", "everysec", "no"]:
                         d = ["always", "everysec", "no"].index(d)
-                    elif d in max_memory_policies:
-                        d = max_memory_policies.index(d)
                 elif d.endswith("mb"):
                     d = d[:-2]
                 elif d.endswith("gb"):
                     d = float(d[:-2]) * 1000
+
+                if d in max_memory_policies:
+                    d = max_memory_policies.index(d)
 
                 datas.append(d)
                 columns.append(col)
