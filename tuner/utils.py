@@ -332,6 +332,9 @@ def convert_dict_to_conf(rec_config, persistence):
             config_list.append('save ' + str(save_sec[s]) + ' ' + str(save_changes[s]) + '\n')
     i = 0
     PATH = '../data/config_results/{}'.format(persistence)
+    if not os.path.exists(PATH):
+        os.makedirs(PATH)
+
     NAME = persistence + '_rec_config{}.conf'.format(i)
     while os.path.exists(os.path.join(PATH, NAME)):
         i += 1
