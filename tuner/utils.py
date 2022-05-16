@@ -118,6 +118,17 @@ def knobs_make_dict(knobs_path):
 
         cnt = 1
 
+        max_memory_policies = [
+            "volatile-lru",
+            "allkeys-lru",
+            "volatile-lfu",
+            "allkeys-lfu",
+            "volatile-random",
+            "allkeys-random",
+            "volatile-ttl",
+            "noeviction",
+        ]
+
         for l in knobs_list:
             if l.split()[0] != 'save':
                 col, d = l.split(' ', 1)
@@ -125,17 +136,15 @@ def knobs_make_dict(knobs_path):
                 if d.isalpha():
                     if d in ["no", "yes"]:
                         d = ["no", "yes"].index(d)
-                    elif d in ["always", "everysec", "no", "noeviction"]:
-                        d = ["always", "everysec", "no", "noeviction"].index(d)
+                    elif d in ["always", "everysec", "no"]:
+                        d = ["always", "everysec", "no"].index(d)
+                    elif d in max_memory_policies:
+                        d = max_memory_policies.index(d)
                 elif d.endswith("mb"):
                     d = d[:-2]
                 elif d.endswith("gb"):
                     d = float(d[:-2]) * 1000
 
-                if d in ["volatile-lfu", "volatile-random", "volatile-lru", "volatile-ttl", "allkeys-lru",
-                         "allkeys-lfu", "allkeys-random"]:
-                    d = ["volatile-lfu", "volatile-random", "volatile-lru", "volatile-ttl", "allkeys-lru",
-                         "allkeys-lfu", "allkeys-random"].index(d)
                 datas.append(d)
                 columns.append(col)
             else:
