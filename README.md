@@ -53,7 +53,8 @@ https://github.com/addb-swstarlab/redis-sample-generation
 To run RS-OtterTune just type:
 
 ```bash
-$ python tuner/train.py --target <workload_num> --persistence <RDB or AOF> --rki <lasso, RF, XGB> 
+$ cd tuner
+$ python train.py --target <workload_num> --persistence <RDB or AOF> --rki <lasso, RF, XGB> 
 ```
 
 By taking the best configuration file from the command above, execute the Redis server.

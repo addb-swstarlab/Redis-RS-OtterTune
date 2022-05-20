@@ -200,8 +200,7 @@ def run_workload_mapping(knob_data, metric_data, target_knob, target_metric, par
 
 
 def configuration_recommendation(target_knob, target_metric, logger, gp_type='numpy', db_type='redis', data_type='RDB'):
-    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric) #수정
-    # 기존코드 : X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric, db_type, data_type)
+    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric)
 
     num_samples = params["NUM_SAMPLES"]
     X_samples = np.empty((num_samples, X_scaled.shape[1]))
