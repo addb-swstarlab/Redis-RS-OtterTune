@@ -20,7 +20,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--tencent', action='store_true', help='Use Tencent Server')
     parser.add_argument('--params', type=str, default='', help='Load existing parameters')
-    parser.add_argument('--target', type=int, default= 1, help='Workload type')
+    parser.add_argument('--target', type=int, default=1, help='Workload type')
     parser.add_argument('--persistence', type=str, choices=["RDB","AOF"], default='RDB', help='Choose Persistant Methods')
     parser.add_argument("--db",type=str, choices=["redis","rocksdb"], default='redis', help="DB type")
     parser.add_argument("--rki",type=str, default='XGB', help = "knob_identification mode")
@@ -66,18 +66,17 @@ if __name__ == '__main__':
     # else:
     #     assert False, 'Choose workload write or readwrite'
 
-    internal_metrics_path = os.path.join(DATA_PATH ,"result_rdb_internal.csv")
-    external_metrics_path = os.path.join(DATA_PATH ,"result_rdb_external.csv")
-
+    internal_metrics_path = os.path.join("./data" ,"result_rdb_internal.csv")
+    external_metrics_path = os.path.join("./data" ,"result_rdb_external.csv")
+    
     # logger.info("####################Target workload name is {}".format(opt.workload))
 
     knobs_path = os.path.join(DATA_PATH, "configs")
 
     if opt.persistence == "RDB":
-        knob_data, _ = utils.load_knobs(knobs_path)
+        knob_data,_ = utils.load_knobs(knobs_path)
     elif opt.persistence == "AOF":
-        _, knob_data = utils.load_knobs(knobs_path)
-
+        _,knob_data = utils.load_knobs(knobs_path)
     logger.info("Fin Load Knob_data")
 
     train_knob_data = {}
@@ -98,7 +97,6 @@ if __name__ == '__main__':
                                                 metrics = ['Totals_Ops/sec'],
                                                 mode = 'external')
     logger.info("Fin Load external_metrics_data")
-
     train_knob_data['data'], test_knob_data['data'] = train_test_split(knob_data['data'],test_size=0.5,shuffle=True,random_state=1004)
     train_knob_data['rowlabels'], test_knob_data['rowlabels'] = train_test_split(knob_data['rowlabels'],test_size=0.5,shuffle=True,random_state=1004)
     train_knob_data['columnlabels'], test_knob_data['columnlabels'] = knob_data['columnlabels'], knob_data['columnlabels']
@@ -113,8 +111,8 @@ if __name__ == '__main__':
     test_external_data['columnlabels'] = external_metric_data['columnlabels']
     assert all(train_knob_data['rowlabels']==train_internal_data['rowlabels'])
 
-    # print(f'{opt.persistence} knob data = {len(knob_data)}, {knob_data.keys()}, {knob_data}')
-    # print(f'{opt.persistence} metric data = {len(metric_data)}, {metric_data.keys()}, {metric_data}')
+    print(f'{opt.persistence} knob data = {len(knob_data)}, {knob_data.keys()}, {knob_data}')
+    #print(f'{opt.persistence} metric data = {len(metric_data)}, {metric_data.keys()}, {metric_data}') <- 수정!!
     
 
 
@@ -175,6 +173,7 @@ if __name__ == '__main__':
         # print(best_topk)
 
         ## Generate Best Configuration file for Redis
+        print(opt.persistence)
         utils.convert_dict_to_conf(conf_map, opt.persistence)
 
     print("END TRAIN")
