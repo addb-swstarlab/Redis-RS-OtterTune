@@ -1,1 +1,116 @@
-[{"name": "hash-max-ziplist-entries", "minval": 100, "maxval": 1500, "default": 512}, {"name": "hash-max-ziplist-value", "minval": 8, "maxval": 256, "default": 64}, {"name": "activerehashing", "minval": 0, "maxval": 1, "default": 1}, {"name": "hz", "minval": 1, "maxval": 200, "default": 10}, {"name": "dynamic-hz", "minval": 0, "maxval": 1, "default": 1}, {"name": "save1_sec", "minval": 700, "maxval": 1400, "default": 900}, {"name": "save1_changes", "minval": 1, "maxval": 9, "default": 1}, {"name": "save2_sec", "minval": 100, "maxval": 699, "default": 300}, {"name": "save2_changes", "minval": 10, "maxval": 100, "default": 10}, {"name": "save3_sec", "minval": 10, "maxval": 99, "default": 60}, {"name": "save3_changes", "minval": 7500, "maxval": 17500, "default": 10000}, {"name": "rdbcompression", "minval": 0, "maxval": 1, "default": 1}, {"name": "rdbchecksum", "minval": 0, "maxval": 1, "default": 1}, {"name": "rdb-save-incremental-fsync", "minval": 0, "maxval": 1, "default": 1}, {"name": "activedefrag", "minval": 0, "maxval": 1, "default": 1}, {"name": "active-defrag-threshold-lower", "minval": 5, "maxval": 49, "default": 10}, {"name": "active-defrag-threshold-upper", "minval": 50, "maxval": 100, "default": 100}, {"name": "active-defrag-cycle-min", "minval": 5, "maxval": 49, "default": 5}, {"name": "active-defrag-cycle-max", "minval": 50, "maxval": 100, "default": 75}]
+[
+  {
+    "name": "hash-max-ziplist-entries",
+    "minval": 100,
+    "maxval": 1500,
+    "default": 512
+  },
+  {
+    "name": "hash-max-ziplist-value",
+    "minval": 8,
+    "maxval": 256,
+    "default": 64
+  },
+  {
+    "name": "activerehashing",
+    "minval": 0,
+    "maxval": 1,
+    "default": 1
+  },
+  {
+    "name": "hz",
+    "minval": 1,
+    "maxval": 200,
+    "default": 10
+  },
+  {
+    "name": "dynamic-hz",
+    "minval": 0,
+    "maxval": 1,
+    "default": 1
+  },
+  {
+    "name": "save1_sec",
+    "minval": 700,
+    "maxval": 1400,
+    "default": 900
+  },
+  {
+    "name": "save1_changes",
+    "minval": 1,
+    "maxval": 9,
+    "default": 1
+  },
+  {
+    "name": "save2_sec",
+    "minval": 100,
+    "maxval": 699,
+    "default": 300
+  },
+  {
+    "name": "save2_changes",
+    "minval": 10,
+    "maxval": 100,
+    "default": 10
+  },
+  {
+    "name": "save3_sec",
+    "minval": 10,
+    "maxval": 99,
+    "default": 60
+  },
+  {
+    "name": "save3_changes",
+    "minval": 7500,
+    "maxval": 17500,
+    "default": 10000
+  },
+  {
+    "name": "rdbcompression",
+    "minval": 0,
+    "maxval": 1,
+    "default": 1
+  },
+  {
+    "name": "rdbchecksum",
+    "minval": 0,
+    "maxval": 1,
+    "default": 1
+  },
+  {
+    "name": "rdb-save-incremental-fsync",
+    "minval": 0,
+    "maxval": 1,
+    "default": 1
+  },
+  {
+    "name": "activedefrag",
+    "minval": 0,
+    "maxval": 1,
+    "default": 1
+  },
+  {
+    "name": "active-defrag-threshold-lower",
+    "minval": 5,
+    "maxval": 49,
+    "default": 10
+  },
+  {
+    "name": "active-defrag-threshold-upper",
+    "minval": 50,
+    "maxval": 100,
+    "default": 100
+  },
+  {
+    "name": "active-defrag-cycle-min",
+    "minval": 5,
+    "maxval": 49,
+    "default": 5
+  },
+  {
+    "name": "active-defrag-cycle-max",
+    "minval": 50,
+    "maxval": 100,
+    "default": 75
+  }
+]
