@@ -63,7 +63,7 @@ class Logger:
     def warn(self, msg):
         msg = "%s[WARN] %s" % (self.get_timestr(), msg)
         self.logger.warning(msg)
-        #self._write_file(msg)
+        # self._write_file(msg)
 
     def info(self, msg):
         msg = "%s[INFO] %s" % (self.get_timestr(), msg)
@@ -73,7 +73,7 @@ class Logger:
     def error(self, msg):
         msg = "%s[ERROR] %s" % (self.get_timestr(), msg)
         self.logger.error(msg)
-        #self._write_file(msg)
+        # self._write_file(msg)
 
 
 def save_state_actions(state_action, filename):
@@ -83,7 +83,6 @@ def save_state_actions(state_action, filename):
 
 
 def knobs_make_dict(knobs_path):
-    knobs_path='/home/capstone2201/new-redis-sample-generation/redis-sample-generation/configfile' #수정
     '''
         input: DataFrame form (samples_num, knobs_num)
         output: Dictionary form --> RDB and AOF
@@ -94,7 +93,7 @@ def knobs_make_dict(knobs_path):
         For mode selection knob, "yes" -> 1 , "no" -> 0
     '''
     config_files = os.listdir(knobs_path)
-    #print(config_files[1])
+    # print(config_files[1])
     dict_RDB = {}
     dict_AOF = {}
     RDB_datas = []
@@ -161,7 +160,7 @@ def knobs_make_dict(knobs_path):
                 flag = ISAOF
             if l.split()[0] == 'save':
                 flag = ISRDB
-        
+
         # add active knobs
         if "activedefrag" not in columns:
             columns.append("activedefrag")
@@ -239,8 +238,8 @@ def load_metrics(m_path=' ', labels=[], metrics=None, mode=' '):
 
 
 def load_knobs(k_path):
-    a,b=knobs_make_dict(k_path)
-    return a,b
+    a, b = knobs_make_dict(k_path)
+    return a, b
 
 
 def metric_preprocess(metrics):
@@ -295,7 +294,7 @@ def convert_dict_to_conf(rec_config, persistence):
     categorical_knobs = ['appendonly', 'no-appendfsync-on-rewrite', 'aof-rewrite-incremental-fsync',
                          'aof-use-rdb-preamble', 'rdbcompression', 'rdbchecksum',
                          'rdb-save-incremental-fsync', 'activedefrag', 'activerehashing']
-    
+
     # if persistence == "RDB":
     #     save_sec = []
     #     save_changes = []
@@ -344,7 +343,6 @@ def convert_dict_to_conf(rec_config, persistence):
         for s in range(len(save_sec)):
             config_list.append('save ' + str(save_sec[s]) + ' ' + str(save_changes[s]) + '\n')
 
-
     PATH = '../data/config_results/{}'.format(persistence)
     if not os.path.exists(PATH):
         os.makedirs(PATH)
@@ -374,6 +372,7 @@ from sklearn.preprocessing import StandardScaler
 
 sys.path.append('../')
 from models.util import DataUtil
+
 
 def process_training_data(target_knob, target_metric):
     if False:
@@ -480,8 +479,8 @@ def process_training_data(target_knob, target_metric):
     X_max = np.empty(X_scaled.shape[1])
     X_scaler_matrix = np.zeros([1, X_scaled.shape[1]])
 
-    with open(os.path.join("/home/capstone2201/data/RDB_knobs.json"), "r") as data: #수정
-       session_knobs = json.load(data)
+    with open(os.path.join("/home/capstone2201/data/RDB_knobs.json"), "r") as data:  # 수정
+        session_knobs = json.load(data)
 
     # Set min/max for knob values
     # TODO : we make binary_index_set

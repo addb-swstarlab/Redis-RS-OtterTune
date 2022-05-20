@@ -75,9 +75,9 @@ if __name__ == '__main__':
     knobs_path = os.path.join(DATA_PATH, "configs")
 
     if opt.persistence == "RDB":
-        knob_data,_ = utils.load_knobs(knobs_path)
+        knob_data, _ = utils.load_knobs(knobs_path)
     elif opt.persistence == "AOF":
-        _,knob_data = utils.load_knobs(knobs_path)
+        _, knob_data = utils.load_knobs(knobs_path)
     logger.info("Fin Load Knob_data")
 
     train_knob_data = {}
