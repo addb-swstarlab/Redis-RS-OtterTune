@@ -44,7 +44,7 @@ if __name__ == '__main__':
     ##TODO: save log
     logger = utils.Logger(
         name=opt.persistence,
-        log_file='logs/{}/{}.log'.format(opt.persistence, expr_name)
+        log_file=f'logs/{opt.persistence}/{expr_name}.log'
     )
 
     # ==============================Data PreProcessing Stage=================================
@@ -182,12 +182,12 @@ if __name__ == '__main__':
                 "Ranked knobs: {}\n".format(opt.persistence, len(ranked_knobs), ranked_knobs))
 
     ### WORKLOAD MAPPING ###
-    ## TODO: ...                 
+    ## TODO: ...
 
     ### RECOMMENDATION STAGE ###
     ##TODO: choose k like incremental 4, 8, 16, ...
-    top_ks = [5, 10, 15, 19]
-    best_recommend = -float('inf')
+    top_ks = [10]
+    # best_recommend = -float('inf')
     best_topk = None
     best_conf_map = None
     for top_k in top_ks:

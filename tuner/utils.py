@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 
-import time, os, sys
-import pickle, json
-import logging
 import datetime
-import pandas as pd
-import numpy as np
-from operator import itemgetter
-from sklearn.preprocessing import LabelEncoder
+import json
 import logging
+import os
+import pickle
+import sys
+import time
+
+import numpy as np
+import pandas as pd
+# from operator import itemgetter
+from sklearn.preprocessing import LabelEncoder
 
 
 def time_start():
@@ -50,10 +53,9 @@ class Logger:
             self.log2file = False
 
     def _write_file(self, msg):
-        pass
-        # if self.log2file:
-        #     with open(self.log_file, 'a+') as f:
-        #         f.write(msg + '\n')
+        if self.log2file:
+            with open(self.log_file, 'a+') as f:
+                f.write(msg + '\n')
 
     def get_timestr(self):
         timestamp = get_timestamp()
@@ -63,29 +65,17 @@ class Logger:
     def warn(self, msg):
         msg = "%s[WARN] %s" % (self.get_timestr(), msg)
         self.logger.warning(msg)
-<<<<<<< HEAD
-        #self._write_file(msg)
-=======
         # self._write_file(msg)
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 
     def info(self, msg):
         msg = "%s[INFO] %s" % (self.get_timestr(), msg)
         self.logger.info(msg)
-<<<<<<< HEAD
-        #self._write_file(msg)
-=======
         self._write_file(msg)
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 
     def error(self, msg):
         msg = "%s[ERROR] %s" % (self.get_timestr(), msg)
         self.logger.error(msg)
-<<<<<<< HEAD
-        #self._write_file(msg)
-=======
         # self._write_file(msg)
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 
 
 def save_state_actions(state_action, filename):
@@ -106,11 +96,8 @@ def knobs_make_dict(knobs_path):
         For mode selection knob, "yes" -> 1 , "no" -> 0
     '''
     config_files = os.listdir(knobs_path)
-<<<<<<< HEAD
-    #print(config_files[1])
-=======
     # print(config_files[1])
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
+
     dict_RDB = {}
     dict_AOF = {}
     RDB_datas = []
@@ -121,19 +108,8 @@ def knobs_make_dict(knobs_path):
     AOF_rowlabels = []
     ISAOF = 0
     ISRDB = 1
-<<<<<<< HEAD
-    for m in range(198):
-        flag = 0
-        datas = []
-        columns = []
-        knob_path = os.path.join(knobs_path, 'config'+str(m+1+10000)+'.conf')
-        f = open(knob_path, 'r')
-        config_file = f.readlines()
-        knobs_list = config_file[config_file.index('#rdb-save-incremental-fsync yes\n')+1:] #수정
-=======
 
     config_nums = [_ for _ in range(1, 201)] + [_ for _ in range(10001, 10201)]
-
     for m in config_nums:
         flag = 0
         datas = []
@@ -143,7 +119,6 @@ def knobs_make_dict(knobs_path):
         config_file = f.readlines()
         knobs_list = config_file[config_file.index('#rdb-save-incremental-fsync yes\n') + 1:]
 
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
         cnt = 1
 
         max_memory_policies = [
@@ -158,25 +133,6 @@ def knobs_make_dict(knobs_path):
         ]
 
         for l in knobs_list:
-<<<<<<< HEAD
-            if l.split()[0] != 'save':               
-                col, d = l.split(' ',1) #수정
-                d = d.replace('\n','') #수정
-                if d.isalpha():
-                    if d in ["no","yes"]:
-                        d = ["no","yes"].index(d)
-                    elif d in ["always","everysec","no","noeviction"]: #volatile-lfu도 categorical하게 처리
-                        
-                        d = ["always","everysec","no","noeviction"].index(d)
-                        
-                elif d.endswith("mb"):
-                    d = d[:-2]
-                elif d.endswith("gb"): #gb 같이 처리하기 #수정
-                    d = float(d[:-2])*1000 #수정
-                if d in ["volatile-lfu","volatile-random","volatile-lru","volatile-ttl","allkeys-lru","allkeys-lfu","allkeys-random"]: #수정
-                    d = ["volatile-lfu","volatile-random","volatile-lru","volatile-ttl","allkeys-lru","allkeys-lfu","allkeys-random"].index(d) #수정
-=======
-
             if l.split()[0] != 'save':
                 col, d = l.split(' ', 1)
                 d = d.replace('\n', '')
@@ -193,7 +149,6 @@ def knobs_make_dict(knobs_path):
                 if d in max_memory_policies:
                     d = max_memory_policies.index(d)
 
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
                 datas.append(d)
                 columns.append(col)
             else:
@@ -238,12 +193,8 @@ def knobs_make_dict(knobs_path):
     dict_RDB['columnlabels'] = np.array(RDB_columns[0])
     dict_AOF['data'] = np.array(AOF_datas)
     dict_AOF['rowlabels'] = np.array(AOF_rowlabels)
-<<<<<<< HEAD
-    #dict_AOF['columnlabels'] = np.array(AOF_columns[0])
-=======
     dict_AOF['columnlabels'] = np.array(AOF_columns[0])
 
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
     return dict_RDB, dict_AOF
 
 
@@ -289,14 +240,9 @@ def load_metrics(m_path=' ', labels=[], metrics=None, mode=' '):
 
 
 def load_knobs(k_path):
-<<<<<<< HEAD
-    a,b=knobs_make_dict(k_path)
-    return a,b
-=======
     a, b = knobs_make_dict(k_path)
     return a, b
 
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 
 def metric_preprocess(metrics):
     '''To invert for categorical internal metrics'''
@@ -335,13 +281,8 @@ def get_ranked_knob_data(ranked_knobs, knob_data, top_k):
 
 
 def convert_dict_to_conf(rec_config, persistence):
-<<<<<<< HEAD
-    f = open('/home/capstone2201/data/init_config.conf', 'r') #수정
-    json_configs_path = '/home/capstone2201/data/'+persistence+'_knobs.json'
-=======
     f = open('../data/init_config.conf', 'r')
     json_configs_path = '../data/' + persistence + '_knobs.json'
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
     with open(json_configs_path, 'r') as j:
         json_configs = json.load(j)
 
@@ -350,20 +291,13 @@ def convert_dict_to_conf(rec_config, persistence):
         dict_config[d['name']] = d['default']
 
     config_list = f.readlines()
-    save_f = False
+    save_parameter_exist = False
 
-    categorical_knobs = ['appendonly', 'no-appendfsync-on-rewrite', 'aof-rewrite-incremental-fsync',
-                         'aof-use-rdb-preamble', 'rdbcompression', 'rdbchecksum',
-                         'rdb-save-incremental-fsync', 'activedefrag', 'activerehashing']
-<<<<<<< HEAD
-    
-    #if persistence == "RDB":     #수정
-    #    save_sec = []            #수정
-    #    save_changes = []        #수정
-    
-    save_sec = [] #수정
-    save_changes = [] #수정
-=======
+    categorical_knobs = [
+        'appendonly', 'no-appendfsync-on-rewrite', 'aof-rewrite-incremental-fsync',
+        'aof-use-rdb-preamble', 'rdbcompression', 'rdbchecksum',
+        'rdb-save-incremental-fsync', 'activedefrag', 'activerehashing', 'dynamic-hz'
+    ]
 
     # if persistence == "RDB":
     #     save_sec = []
@@ -371,7 +305,6 @@ def convert_dict_to_conf(rec_config, persistence):
     save_sec = []
     save_changes = []
 
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
     for k in dict_config.keys():
         if k in rec_config.keys():
             dict_config[k] = rec_config[k]
@@ -379,16 +312,16 @@ def convert_dict_to_conf(rec_config, persistence):
         dict_config[k] = round(dict_config[k])
 
         if k in categorical_knobs:
-            if k == "activerehashing":
-                if dict_config[k] == 0:
-                    dict_config[k] = 'no'
-                elif dict_config[k] >= 1:
-                    dict_config[k] = 'yes'
+            # Boolean
+            if dict_config[k] < 0.5:
+                dict_config[k] = 'no'
             else:
-                if dict_config[k] == 0:
-                    dict_config[k] = 'no'
-                elif dict_config[k] >= 1:
-                    dict_config[k] = 'yes'
+                dict_config[k] = 'yes'
+            # if k == "activerehashing":
+            #     if dict_config[k] == 0:
+            #         dict_config[k] = 'no'
+            #     elif dict_config[k] >= 1:
+            #         dict_config[k] = 'yes'
         if k == 'appendfsync':
             if dict_config[k] == 0:
                 dict_config[k] = 'always'
@@ -398,7 +331,7 @@ def convert_dict_to_conf(rec_config, persistence):
                 dict_config[k] = 'no'
 
         if 'changes' in k or 'sec' in k:
-            save_f = True
+            save_parameter_exist = True
             if 'sec' in k:
                 save_sec.append(dict_config[k])
             if 'changes' in k:
@@ -407,32 +340,27 @@ def convert_dict_to_conf(rec_config, persistence):
 
         if k == 'auto-aof-rewrite-min-size':
             dict_config[k] = str(dict_config[k]) + 'mb'
+        if k == 'maxmemory':
+            dict_config[k] = str(float(dict_config[k]) / 1000) + 'gb'
+
+        max_memory_policies = [
+            "volatile-lru",
+            "allkeys-lru",
+            "volatile-lfu",
+            "allkeys-lfu",
+            "volatile-random",
+            "allkeys-random",
+            "volatile-ttl",
+            "noeviction",
+        ]
+        if k == "maxmemory-policy":
+            dict_config[k] = max_memory_policies[dict_config[k]]
 
         config_list.append(k + ' ' + str(dict_config[k]) + '\n')
 
-    if save_f:
+    if save_parameter_exist:
         for s in range(len(save_sec)):
             config_list.append('save ' + str(save_sec[s]) + ' ' + str(save_changes[s]) + '\n')
-<<<<<<< HEAD
-    i = 0
-    PATH = '/home/capstone2201/data/config_results/{}'.format(persistence) #수정
-    NAME = persistence+'_rec_config{}.conf'.format(i)
-    while os.path.exists(os.path.join(PATH,NAME)):
-        i+=1
-        NAME = persistence+'_rec_config{}.conf'.format(i)
-    
-    with open(os.path.join(PATH,NAME), 'w') as rec_f:
-        rec_f.writelines(config_list) 
-
-def config_exist(persistence):
-    i = 0
-    PATH = '/home/capstone2201/data/config_results/{}'.format(persistence) #수정
-    NAME = persistence+'_rec_config{}.conf'.format(i)
-    while os.path.exists(os.path.join(PATH,NAME)):
-        i+=1
-        NAME = persistence+'_rec_config{}.conf'.format(i)
-    return NAME[:-5]
-=======
 
     PATH = '../data/config_results/{}'.format(persistence)
     if not os.path.exists(PATH):
@@ -455,31 +383,22 @@ def config_exist(persistence):
     while os.path.exists(os.path.join(PATH, NAME)):
         i += 1
         NAME = persistence + '_rec_config{}.conf'.format(i)
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 
     return NAME[:-5]
 
 
 from sklearn.preprocessing import StandardScaler
-<<<<<<< HEAD
-##경로수정
-sys.path.append('Redis-RS-OtterTune/')
-=======
 
 sys.path.append('../')
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 from models.util import DataUtil
 
 def process_training_data(target_knob, target_metric):
-    if False:
-        pass
-    else:
-        # combine the target_data with itself is actually adding nothing to the target_data
-        X_workload = np.array(target_knob['data'])
-        X_columnlabels = np.array(target_knob['columnlabels'])
-        y_workload = np.array(target_metric['data'])
-        y_columnlabels = np.array(target_metric['columnlabels'])
-        rowlabels_workload = np.array(target_knob['rowlabels'])
+    # combine the target_data with itself is actually adding nothing to the target_data
+    X_workload = np.array(target_knob['data'])
+    X_columnlabels = np.array(target_knob['columnlabels'])
+    y_workload = np.array(target_metric['data'])
+    y_columnlabels = np.array(target_metric['columnlabels'])
+    rowlabels_workload = np.array(target_knob['rowlabels'])
 
     # Target workload data
     X_target = target_knob['data']
@@ -575,13 +494,8 @@ def process_training_data(target_knob, target_metric):
     X_max = np.empty(X_scaled.shape[1])
     X_scaler_matrix = np.zeros([1, X_scaled.shape[1]])
 
-<<<<<<< HEAD
-    with open(os.path.join("/home/capstone2201/data/RDB_knobs.json"), "r") as data: #수정
-       session_knobs = json.load(data)
-=======
-    with open(os.path.join("/home/capstone2201/data/RDB_knobs.json"), "r") as data:  # 수정
+    with open(os.path.join("../data/RDB_knobs.json"), "r") as data:
         session_knobs = json.load(data)
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 
     # Set min/max for knob values
     # TODO : we make binary_index_set
