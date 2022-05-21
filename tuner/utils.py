@@ -289,11 +289,13 @@ def convert_dict_to_conf(rec_config, persistence):
         dict_config[d['name']] = d['default']
 
     config_list = f.readlines()
-    save_f = False
+    save_parameter_exist = False
 
-    categorical_knobs = ['appendonly', 'no-appendfsync-on-rewrite', 'aof-rewrite-incremental-fsync',
-                         'aof-use-rdb-preamble', 'rdbcompression', 'rdbchecksum',
-                         'rdb-save-incremental-fsync', 'activedefrag', 'activerehashing']
+    categorical_knobs = [
+        'appendonly', 'no-appendfsync-on-rewrite', 'aof-rewrite-incremental-fsync',
+        'aof-use-rdb-preamble', 'rdbcompression', 'rdbchecksum',
+        'rdb-save-incremental-fsync', 'activedefrag', 'activerehashing'
+    ]
 
     # if persistence == "RDB":
     #     save_sec = []
@@ -327,7 +329,7 @@ def convert_dict_to_conf(rec_config, persistence):
                 dict_config[k] = 'no'
 
         if 'changes' in k or 'sec' in k:
-            save_f = True
+            save_parameter_exist = True
             if 'sec' in k:
                 save_sec.append(dict_config[k])
             if 'changes' in k:
@@ -336,17 +338,33 @@ def convert_dict_to_conf(rec_config, persistence):
 
         if k == 'auto-aof-rewrite-min-size':
             dict_config[k] = str(dict_config[k]) + 'mb'
+        if k == 'maxmemory':
+            dict_config[k] = str(float(dict_config[k]) / 1000) + 'gb'
+
+        max_memory_policies = [
+            "volatile-lru",
+            "allkeys-lru",
+            "volatile-lfu",
+            "allkeys-lfu",
+            "volatile-random",
+            "allkeys-random",
+            "volatile-ttl",
+            "noeviction",
+        ]
+        if k == "maxmemory-policy":
+            dict_config[k] = max_memory_policies[dict_config[k]]
 
         config_list.append(k + ' ' + str(dict_config[k]) + '\n')
 
-    if save_f:
+    if save_parameter_exist:
         for s in range(len(save_sec)):
             config_list.append('save ' + str(save_sec[s]) + ' ' + str(save_changes[s]) + '\n')
-    i = 0
+
     PATH = '../data/config_results/{}'.format(persistence)
     if not os.path.exists(PATH):
         os.makedirs(PATH)
 
+    i = 0
     NAME = persistence + '_rec_config{}.conf'.format(i)
     while os.path.exists(os.path.join(PATH, NAME)):
         i += 1
