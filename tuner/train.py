@@ -34,6 +34,8 @@ if __name__ == '__main__':
 
     if not os.path.exists('logs'):
         os.mkdir('logs')
+        os.mkdir('logs/RDB')
+        os.mkdir('logs/AOF')
 
     if not os.path.exists('save_knobs'):
         os.mkdir('save_knobs')

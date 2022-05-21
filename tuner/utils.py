@@ -391,7 +391,7 @@ from sklearn.preprocessing import StandardScaler
 sys.path.append('../')
 from models.util import DataUtil
 
-def process_training_data(target_knob, target_metric):
+def process_training_data(target_knob, target_metric, data_type):
     # combine the target_data with itself is actually adding nothing to the target_data
     X_workload = np.array(target_knob['data'])
     X_columnlabels = np.array(target_knob['columnlabels'])
@@ -493,9 +493,15 @@ def process_training_data(target_knob, target_metric):
     X_max = np.empty(X_scaled.shape[1])
     X_scaler_matrix = np.zeros([1, X_scaled.shape[1]])
 
-    with open(os.path.join("../data/RDB_knobs.json"), "r") as data:
-        session_knobs = json.load(data)
-
+    if data_type == 'RDB':
+        with open(os.path.join("../data/RDB_knobs.json"), "r") as data:
+            session_knobs = json.load(data)
+    elif data_type == 'AOF':
+        with open(os.path.join("../data/AOF_knobs.json"), "r") as data:
+            session_knobs = json.load(data)
+    else:
+        raise Exception("persistence should be 'AOF' or 'RDB'.")
+        
     # Set min/max for knob values
     # TODO : we make binary_index_set
     for i in range(X_scaled.shape[1]):
