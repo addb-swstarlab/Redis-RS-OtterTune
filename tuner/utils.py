@@ -65,7 +65,7 @@ class Logger:
     def warn(self, msg):
         msg = "%s[WARN] %s" % (self.get_timestr(), msg)
         self.logger.warning(msg)
-        # self._write_file(msg)
+        self._write_file(msg)
 
     def info(self, msg):
         msg = "%s[INFO] %s" % (self.get_timestr(), msg)
@@ -75,7 +75,7 @@ class Logger:
     def error(self, msg):
         msg = "%s[ERROR] %s" % (self.get_timestr(), msg)
         self.logger.error(msg)
-        # self._write_file(msg)
+        self._write_file(msg)
 
 
 def save_state_actions(state_action, filename):
@@ -85,7 +85,6 @@ def save_state_actions(state_action, filename):
 
 
 def knobs_make_dict(knobs_path):
-    knobs_path='/home/capstone2201/new-redis-sample-generation/redis-sample-generation/configfile' #수정
     '''
         input: DataFrame form (samples_num, knobs_num)
         output: Dictionary form --> RDB and AOF
