@@ -310,16 +310,16 @@ def convert_dict_to_conf(rec_config, persistence):
         dict_config[k] = round(dict_config[k])
 
         if k in categorical_knobs:
-            if k == "activerehashing":
-                if dict_config[k] == 0:
-                    dict_config[k] = 'no'
-                elif dict_config[k] >= 1:
-                    dict_config[k] = 'yes'
+            # Boolean
+            if dict_config[k] < 0.5:
+                dict_config[k] = 'no'
             else:
-                if dict_config[k] == 0:
-                    dict_config[k] = 'no'
-                elif dict_config[k] >= 1:
-                    dict_config[k] = 'yes'
+                dict_config[k] = 'yes'
+            # if k == "activerehashing":
+            #     if dict_config[k] == 0:
+            #         dict_config[k] = 'no'
+            #     elif dict_config[k] >= 1:
+            #         dict_config[k] = 'yes'
         if k == 'appendfsync':
             if dict_config[k] == 0:
                 dict_config[k] = 'always'
