@@ -391,15 +391,12 @@ from models.util import DataUtil
 
 
 def process_training_data(target_knob, target_metric):
-    if False:
-        pass
-    else:
-        # combine the target_data with itself is actually adding nothing to the target_data
-        X_workload = np.array(target_knob['data'])
-        X_columnlabels = np.array(target_knob['columnlabels'])
-        y_workload = np.array(target_metric['data'])
-        y_columnlabels = np.array(target_metric['columnlabels'])
-        rowlabels_workload = np.array(target_knob['rowlabels'])
+    # combine the target_data with itself is actually adding nothing to the target_data
+    X_workload = np.array(target_knob['data'])
+    X_columnlabels = np.array(target_knob['columnlabels'])
+    y_workload = np.array(target_metric['data'])
+    y_columnlabels = np.array(target_metric['columnlabels'])
+    rowlabels_workload = np.array(target_knob['rowlabels'])
 
     # Target workload data
     X_target = target_knob['data']
