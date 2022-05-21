@@ -88,43 +88,62 @@ if __name__ == '__main__':
     train_external_data = {}
     test_external_data = {}
 
-    internal_metric_data, dict_le_in = utils.load_metrics(m_path=internal_metrics_path,
-                                                          labels=knob_data['rowlabels'],
-                                                          mode='internal')
+    internal_metric_data, dict_le_in = utils.load_metrics(
+        m_path=internal_metrics_path,
+        labels=knob_data['rowlabels'],
+        mode='internal'
+    )
 
     logger.info("Fin Load internal_metrics_data")
 
-    external_metric_data, _ = utils.load_metrics(m_path=external_metrics_path,
-                                                 labels=knob_data['rowlabels'],
-                                                 metrics=['Totals_Ops/sec'],
-                                                 mode='external')
+    external_metric_data, _ = utils.load_metrics(
+        m_path=external_metrics_path,
+        labels=knob_data['rowlabels'],
+        metrics=['Totals_Ops/sec'],
+        mode='external'
+    )
     logger.info("Fin Load external_metrics_data")
 
-    train_knob_data['data'], test_knob_data['data'] = train_test_split(knob_data['data'], test_size=0.5, shuffle=True,
-                                                                       random_state=1004)
-    train_knob_data['rowlabels'], test_knob_data['rowlabels'] = train_test_split(knob_data['rowlabels'], test_size=0.5,
-                                                                                 shuffle=True, random_state=1004)
-    train_knob_data['columnlabels'], test_knob_data['columnlabels'] = knob_data['columnlabels'], knob_data[
-        'columnlabels']
+    random_state = 1004
 
-    train_internal_data['data'], test_internal_data['data'] = train_test_split(internal_metric_data['data'],
-                                                                               test_size=0.5, shuffle=True,
-                                                                               random_state=1004)
+    train_knob_data['data'], test_knob_data['data'] = train_test_split(
+        knob_data['data'], test_size=0.5, shuffle=True,
+        random_state=random_state
+    )
+    train_knob_data['rowlabels'], test_knob_data['rowlabels'] = train_test_split(
+        knob_data['rowlabels'], test_size=0.5,
+        shuffle=True, random_state=random_state
+    )
+    train_knob_data['columnlabels'], test_knob_data['columnlabels'] = (
+        knob_data['columnlabels'], knob_data['columnlabels'])
+
+    train_internal_data['data'], test_internal_data['data'] = train_test_split(
+        internal_metric_data['data'],
+        test_size=0.5, shuffle=True,
+        random_state=random_state
+    )
     train_internal_data['rowlabels'], test_internal_data['rowlabels'] = train_test_split(
-        internal_metric_data['rowlabels'], test_size=0.5, shuffle=True, random_state=1004)
-    train_internal_data['columnlabels'], test_internal_data['columnlabels'] = internal_metric_data['columnlabels'], \
-                                                                              internal_metric_data['columnlabels']
+        internal_metric_data['rowlabels'], test_size=0.5, shuffle=True, random_state=random_state
+    )
+    train_internal_data['columnlabels'], test_internal_data['columnlabels'] = (
+        internal_metric_data['columnlabels'],
+        internal_metric_data['columnlabels']
+    )
 
-    train_external_data['data'], test_external_data['data'] = train_test_split(external_metric_data['data'],
-                                                                               test_size=0.5, shuffle=True,
-                                                                               random_state=1004)
+    train_external_data['data'], test_external_data['data'] = train_test_split(
+        external_metric_data['data'],
+        test_size=0.5, shuffle=True,
+        random_state=random_state
+    )
     train_external_data['rowlabels'], test_external_data['rowlabels'] = train_test_split(
-        external_metric_data['rowlabels'], test_size=0.5, shuffle=True, random_state=1004)
+        external_metric_data['rowlabels'], test_size=0.5, shuffle=True, random_state=random_state
+    )
     train_external_data['columnlabels'] = external_metric_data['columnlabels']
     test_external_data['columnlabels'] = external_metric_data['columnlabels']
+
     assert all(train_knob_data['rowlabels'] == train_internal_data['rowlabels'])
 
-    # print(f'{opt.persistence} knob data = {len(knob_data)}, {knob_data.keys()}, {knob_data}')
+    print(f'{opt.persistence} knob data = {len(knob_data)}, {knob_data.keys()}, {knob_data}')
     # print(f'{opt.persistence} metric data = {len(metric_data)}, {metric_data.keys()}, {metric_data}')
 
     ### METRICS SIMPLIFICATION STAGE ###
@@ -134,10 +153,14 @@ if __name__ == '__main__':
     """
     logger.info("\n\n====================== run_workload_characterization ====================")
     pruned_metrics = run_workload_characterization(train_internal_data)
-    logger.info("Done pruning metrics for workload {} (# of pruned metrics: {}).\n\n""Pruned metrics: {}\n".format(
-        opt.persistence, len(pruned_metrics), pruned_metrics))
-    metric_idxs = [i for i, metric_name in enumerate(train_internal_data['columnlabels']) if
-                   metric_name in pruned_metrics]
+    logger.info(
+        "Done pruning metrics for workload {} (# of pruned metrics: {}).\n\n""Pruned metrics: {}\n".format(
+            opt.persistence, len(pruned_metrics), pruned_metrics)
+    )
+    metric_idxs = [
+        i for i, metric_name in enumerate(train_internal_data['columnlabels']) if
+        metric_name in pruned_metrics
+    ]
     ranked_metric_data = {
         'data': train_internal_data['data'][:, metric_idxs],
         'rowlabels': copy.deepcopy(train_internal_data['rowlabels']),
@@ -148,10 +171,12 @@ if __name__ == '__main__':
     rank_knob_data = copy.deepcopy(train_knob_data)
     logger.info("\n\n====================== run_knob_identification ====================")
     logger.info("use mode = {}".format(opt.rki))
-    ranked_knobs = run_knob_identification(knob_data=rank_knob_data,
-                                           metric_data=ranked_metric_data,
-                                           mode=opt.rki,
-                                           logger=logger)
+    ranked_knobs = run_knob_identification(
+        knob_data=rank_knob_data,
+        metric_data=ranked_metric_data,
+        mode=opt.rki,
+        logger=logger
+    )
     logger.info("Done ranking knobs for workload {} (# ranked knobs: {}).\n\n"
                 "Ranked knobs: {}\n".format(opt.persistence, len(ranked_knobs), ranked_knobs))
 
@@ -171,8 +196,9 @@ if __name__ == '__main__':
         ranked_test_knob_data = utils.get_ranked_knob_data(ranked_knobs, test_knob_data, top_k)
 
         ## TODO: params(GP option) and will offer opt all
-        FIN, recommend, conf_map = configuration_recommendation(ranked_test_knob_data, test_external_data, logger,
-                                                                opt.gp, opt.db, opt.persistence)
+        FIN, recommend, conf_map = configuration_recommendation(
+            ranked_test_knob_data, test_external_data, logger, opt.gp, opt.db, opt.persistence
+        )
 
         # if recommend > best_recommend and FIN:
         #     best_recommend = recommend
