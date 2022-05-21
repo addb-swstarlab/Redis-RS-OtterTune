@@ -20,7 +20,7 @@ class LGBMR(object):
     """
     def __init__(self,n_estimators = 100, max_depth = 7, learning_rate = 0.08, booster='gbdt', colsample_bytree = 1):
         """
-        Init xgboost model using XGBRegressor
+        Init lgbm model using LGBMRegressor
 
         Parameters
         ----------
@@ -57,7 +57,7 @@ class LGBMR(object):
         self.rankings_ = None
 
     def fit(self,X,y,feature_labels):
-        """Computes the xgboost using XGBRegressor.
+        """Computes the xgboost using LGBMRegressor.
 
         Parameters
         ----------
@@ -86,7 +86,7 @@ class LGBMR(object):
 
     def get_ranked_knobs(self):
         """
-        Compute feature_importance using trained XGBR model by rankings_.
+        Compute feature_importance using trained LGBMR model by rankings_.
         Sort by feature importance descending.
 
         Returns
@@ -94,14 +94,14 @@ class LGBMR(object):
         sorted features(knobs)
         """
         if self.rankings_ is None:
-            raise Exception("No XGBR has been fit yet")
+            raise Exception("No LGBMR has been fit yet")
         
         rank_idxs = sorted(self.rankings_,key= lambda x : x[0],reverse=True)
         return [v for _,v in rank_idxs]
 
     def get_ranked_importance(self):
         """
-        Compute feature_importance using trained XGBR model by rankings_.
+        Compute feature_importance using trained LGBMR model by rankings_.
         Sort by feature importance descending.
 
         Returns
