@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 
-import time, os, sys
-import pickle, json
-import logging
 import datetime
-import pandas as pd
-import numpy as np
-from operator import itemgetter
-from sklearn.preprocessing import LabelEncoder
+import json
 import logging
+import os
+import pickle
+import sys
+import time
+
+import numpy as np
+import pandas as pd
+# from operator import itemgetter
+from sklearn.preprocessing import LabelEncoder
 
 
 def time_start():
@@ -50,10 +53,9 @@ class Logger:
             self.log2file = False
 
     def _write_file(self, msg):
-        pass
-        # if self.log2file:
-        #     with open(self.log_file, 'a+') as f:
-        #         f.write(msg + '\n')
+        if self.log2file:
+            with open(self.log_file, 'a+') as f:
+                f.write(msg + '\n')
 
     def get_timestr(self):
         timestamp = get_timestamp()
