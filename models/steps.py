@@ -1,4 +1,3 @@
-
 from models.cluster import KMeansClusters, create_kselection_model
 from models.factor_analysis import FactorAnalysis
 from models.preprocessing import (get_shuffle_indices, consolidate_columnlabels)
@@ -13,7 +12,7 @@ from models.gp import GPRNP
 from sklearn.preprocessing import StandardScaler
 from sklearn.gaussian_process import GaussianProcessRegressor
 import numpy as np
-from models.parameters import params
+from models.parameters import *
 
 import utils
 
@@ -208,12 +207,7 @@ def run_workload_mapping(knob_data, metric_data, target_knob, target_metric, par
 
 
 def configuration_recommendation(target_knob, target_metric, logger, gp_type='numpy', db_type='redis', data_type='RDB'):
-<<<<<<< HEAD
-    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric) #수정
-    # 기존코드 : X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric, db_type, data_type)
-=======
     X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric)
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 
     num_samples = params["NUM_SAMPLES"]
     X_samples = np.empty((num_samples, X_scaled.shape[1]))
