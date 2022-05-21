@@ -104,14 +104,15 @@ if __name__ == '__main__':
     )
     logger.info("Fin Load external_metrics_data")
 
+    test_size = 0.2
     random_state = 1004
 
     train_knob_data['data'], test_knob_data['data'] = train_test_split(
-        knob_data['data'], test_size=0.5, shuffle=True,
+        knob_data['data'], test_size=test_size, shuffle=True,
         random_state=random_state
     )
     train_knob_data['rowlabels'], test_knob_data['rowlabels'] = train_test_split(
-        knob_data['rowlabels'], test_size=0.5,
+        knob_data['rowlabels'], test_size=test_size,
         shuffle=True, random_state=random_state
     )
     train_knob_data['columnlabels'], test_knob_data['columnlabels'] = (
@@ -119,11 +120,11 @@ if __name__ == '__main__':
 
     train_internal_data['data'], test_internal_data['data'] = train_test_split(
         internal_metric_data['data'],
-        test_size=0.5, shuffle=True,
+        test_size=test_size, shuffle=True,
         random_state=random_state
     )
     train_internal_data['rowlabels'], test_internal_data['rowlabels'] = train_test_split(
-        internal_metric_data['rowlabels'], test_size=0.5, shuffle=True, random_state=random_state
+        internal_metric_data['rowlabels'], test_size=test_size, shuffle=True, random_state=random_state
     )
     train_internal_data['columnlabels'], test_internal_data['columnlabels'] = (
         internal_metric_data['columnlabels'],
@@ -132,11 +133,11 @@ if __name__ == '__main__':
 
     train_external_data['data'], test_external_data['data'] = train_test_split(
         external_metric_data['data'],
-        test_size=0.5, shuffle=True,
+        test_size=test_size, shuffle=True,
         random_state=random_state
     )
     train_external_data['rowlabels'], test_external_data['rowlabels'] = train_test_split(
-        external_metric_data['rowlabels'], test_size=0.5, shuffle=True, random_state=random_state
+        external_metric_data['rowlabels'], test_size=test_size, shuffle=True, random_state=random_state
     )
     train_external_data['columnlabels'] = external_metric_data['columnlabels']
     test_external_data['columnlabels'] = external_metric_data['columnlabels']
@@ -158,8 +159,8 @@ if __name__ == '__main__':
             opt.persistence, len(pruned_metrics), pruned_metrics)
     )
     metric_idxs = [
-        i for i, metric_name in enumerate(train_internal_data['columnlabels']) if
-        metric_name in pruned_metrics
+        i for i, metric_name in enumerate(train_internal_data['columnlabels'])
+        if metric_name in pruned_metrics
     ]
     ranked_metric_data = {
         'data': train_internal_data['data'][:, metric_idxs],
