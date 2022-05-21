@@ -44,7 +44,7 @@ if __name__ == '__main__':
     ##TODO: save log
     logger = utils.Logger(
         name=opt.persistence,
-        log_file=f'logs/{opt.persistence}-{expr_name}.log'
+        log_file=f'logs/{opt.persistence}/{expr_name}.log'
     )
 
     # ==============================Data PreProcessing Stage=================================
