@@ -4,6 +4,7 @@ from models.factor_analysis import FactorAnalysis
 from models.preprocessing import (get_shuffle_indices, consolidate_columnlabels)
 from models.lasso import LassoPath
 from models.xgboost import XGBR
+from models.lgbm import LGBMR
 from models.util import DataUtil
 from models.rf import RFR
 
@@ -12,7 +13,7 @@ from models.gp import GPRNP
 from sklearn.preprocessing import StandardScaler
 from sklearn.gaussian_process import GaussianProcessRegressor
 import numpy as np
-from models.parameters import *
+from models.parameters import params
 
 import utils
 
@@ -101,6 +102,13 @@ def run_knob_identification(knob_data,metric_data,mode, logger):
         xgb_model.fit(shuffled_knob_matrix, shuffled_metric_matrix,encoded_knob_columnlabels)
         encoded_knobs = xgb_model.get_ranked_knobs()
         feature_imp = xgb_model.get_ranked_importance()
+        logger.info('feature importance')
+        logger.info(feature_imp)
+    elif mode == "LGBM":
+        lgbm_model = LGBMR()
+        lgbm_model.fit(shuffled_knob_matrix, shuffled_metric_matrix,encoded_knob_columnlabels)
+        encoded_knobs = lgbm_model.get_ranked_knobs()
+        feature_imp = lgbm_model.get_ranked_importance()
         logger.info('feature importance')
         logger.info(feature_imp)
     elif mode == "RF":
@@ -200,7 +208,8 @@ def run_workload_mapping(knob_data, metric_data, target_knob, target_metric, par
 
 
 def configuration_recommendation(target_knob, target_metric, logger, gp_type='numpy', db_type='redis', data_type='RDB'):
-    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric, db_type, data_type)
+    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric) #수정
+    # 기존코드 : X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric, db_type, data_type)
 
     num_samples = params["NUM_SAMPLES"]
     X_samples = np.empty((num_samples, X_scaled.shape[1]))

@@ -62,17 +62,17 @@ class Logger:
     def warn(self, msg):
         msg = "%s[WARN] %s" % (self.get_timestr(), msg)
         self.logger.warning(msg)
-        self._write_file(msg)
+        #self._write_file(msg)
 
     def info(self, msg):
         msg = "%s[INFO] %s" % (self.get_timestr(), msg)
-        #self.logger.info(msg)
-        self._write_file(msg)
+        self.logger.info(msg)
+        #self._write_file(msg)
 
     def error(self, msg):
         msg = "%s[ERROR] %s" % (self.get_timestr(), msg)
         self.logger.error(msg)
-        self._write_file(msg)
+        #self._write_file(msg)
 
 
 def save_state_actions(state_action, filename):
@@ -82,6 +82,7 @@ def save_state_actions(state_action, filename):
     f.close()
 
 def knobs_make_dict(knobs_path):
+    knobs_path='/home/capstone2201/new-redis-sample-generation/redis-sample-generation/configfile' #수정
     '''
         input: DataFrame form (samples_num, knobs_num)
         output: Dictionary form --> RDB and AOF
@@ -92,7 +93,7 @@ def knobs_make_dict(knobs_path):
         For mode selection knob, "yes" -> 1 , "no" -> 0
     '''
     config_files = os.listdir(knobs_path)
-
+    #print(config_files[1])
     dict_RDB = {}
     dict_AOF = {}
     RDB_datas = []
@@ -103,28 +104,33 @@ def knobs_make_dict(knobs_path):
     AOF_rowlabels = []
     ISAOF = 0
     ISRDB = 1
-
-    for m in range(len(config_files)):
+    for m in range(198):
         flag = 0
         datas = []
         columns = []
-        knob_path = os.path.join(knobs_path, 'config'+str(m+1+1000)+'.conf')
+        knob_path = os.path.join(knobs_path, 'config'+str(m+1+10000)+'.conf')
         f = open(knob_path, 'r')
         config_file = f.readlines()
-        knobs_list = config_file[config_file.index('\n')+1:]
-
+        knobs_list = config_file[config_file.index('#rdb-save-incremental-fsync yes\n')+1:] #수정
         cnt = 1
 
         for l in knobs_list:
-            if l.split()[0] != 'save':
-                col, d = l.split()
+            if l.split()[0] != 'save':               
+                col, d = l.split(' ',1) #수정
+                d = d.replace('\n','') #수정
                 if d.isalpha():
                     if d in ["no","yes"]:
                         d = ["no","yes"].index(d)
-                    elif d in ["always","everysec","no"]:
-                        d = ["always","everysec","no"].index(d)
+                    elif d in ["always","everysec","no","noeviction"]: #volatile-lfu도 categorical하게 처리
+                        
+                        d = ["always","everysec","no","noeviction"].index(d)
+                        
                 elif d.endswith("mb"):
                     d = d[:-2]
+                elif d.endswith("gb"): #gb 같이 처리하기 #수정
+                    d = float(d[:-2])*1000 #수정
+                if d in ["volatile-lfu","volatile-random","volatile-lru","volatile-ttl","allkeys-lru","allkeys-lfu","allkeys-random"]: #수정
+                    d = ["volatile-lfu","volatile-random","volatile-lru","volatile-ttl","allkeys-lru","allkeys-lfu","allkeys-random"].index(d) #수정
                 datas.append(d)
                 columns.append(col)
             else:
@@ -134,12 +140,11 @@ def knobs_make_dict(knobs_path):
                 datas.append(d1)
                 datas.append(d2)
                 cnt += 1
-
             if l.split()[0] == 'appendonly':
                 flag = ISAOF
             if l.split()[0] == 'save':
                 flag = ISRDB
-
+        
         # add active knobs
         if "activedefrag" not in columns:
             columns.append("activedefrag")
@@ -170,7 +175,7 @@ def knobs_make_dict(knobs_path):
     dict_RDB['columnlabels'] = np.array(RDB_columns[0])
     dict_AOF['data'] = np.array(AOF_datas)
     dict_AOF['rowlabels'] = np.array(AOF_rowlabels)
-    # dict_AOF['columnlabels'] = np.array(AOF_columns[0])
+    #dict_AOF['columnlabels'] = np.array(AOF_columns[0])
     return dict_RDB, dict_AOF
 
 def metrics_make_dict(pd_metrics, labels):
@@ -211,7 +216,8 @@ def load_metrics(m_path = ' ', labels = [], metrics=None, mode = ' '):
         return metrics_make_dict(pd_metrics[metrics], labels), None
 
 def load_knobs(k_path):
-    return knobs_make_dict(k_path)
+    a,b=knobs_make_dict(k_path)
+    return a,b
 
 def metric_preprocess(metrics):
     '''To invert for categorical internal metrics'''
@@ -248,8 +254,8 @@ def get_ranked_knob_data(ranked_knobs, knob_data, top_k):
     return ranked_knob_data
 
 def convert_dict_to_conf(rec_config, persistence):
-    f = open('../data/init_config.conf', 'r')
-    json_configs_path = '../data/'+persistence+'_knobs.json'
+    f = open('/home/capstone2201/data/init_config.conf', 'r') #수정
+    json_configs_path = '/home/capstone2201/data/'+persistence+'_knobs.json'
     with open(json_configs_path, 'r') as j:
         json_configs = json.load(j)
 
@@ -264,11 +270,12 @@ def convert_dict_to_conf(rec_config, persistence):
                          'aof-use-rdb-preamble', 'rdbcompression', 'rdbchecksum', 
                          'rdb-save-incremental-fsync', 'activedefrag', 'activerehashing']
     
-    if persistence == "RDB":
-        save_sec = []
-        save_changes = []   
+    #if persistence == "RDB":     #수정
+    #    save_sec = []            #수정
+    #    save_changes = []        #수정
     
-    
+    save_sec = [] #수정
+    save_changes = [] #수정
     for k in dict_config.keys():
         if k in rec_config.keys():
             dict_config[k] = rec_config[k]
@@ -304,7 +311,7 @@ def convert_dict_to_conf(rec_config, persistence):
         for s in range(len(save_sec)):
             config_list.append('save ' + str(save_sec[s]) + ' ' + str(save_changes[s]) + '\n')
     i = 0
-    PATH = '../data/config_results/{}'.format(persistence)
+    PATH = '/home/capstone2201/data/config_results/{}'.format(persistence) #수정
     NAME = persistence+'_rec_config{}.conf'.format(i)
     while os.path.exists(os.path.join(PATH,NAME)):
         i+=1
@@ -315,7 +322,7 @@ def convert_dict_to_conf(rec_config, persistence):
 
 def config_exist(persistence):
     i = 0
-    PATH = '../data/config_results/{}'.format(persistence)
+    PATH = '/home/capstone2201/data/config_results/{}'.format(persistence) #수정
     NAME = persistence+'_rec_config{}.conf'.format(i)
     while os.path.exists(os.path.join(PATH,NAME)):
         i+=1
@@ -325,9 +332,9 @@ def config_exist(persistence):
 
 
 from sklearn.preprocessing import StandardScaler
-sys.path.append('../')
+##경로수정
+sys.path.append('Redis-RS-OtterTune/')
 from models.util import DataUtil
-
 
 def process_training_data(target_knob, target_metric):
     if False:
@@ -434,8 +441,8 @@ def process_training_data(target_knob, target_metric):
     X_max = np.empty(X_scaled.shape[1])
     X_scaler_matrix = np.zeros([1, X_scaled.shape[1]])
 
-    with open(os.path.join("../data/RDB_knobs.json"), "r") as data:
-        session_knobs = json.load(data)
+    with open(os.path.join("/home/capstone2201/data/RDB_knobs.json"), "r") as data: #수정
+       session_knobs = json.load(data)
 
     # Set min/max for knob values
     #TODO : we make binary_index_set

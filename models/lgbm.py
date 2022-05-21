@@ -1,14 +1,13 @@
-from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
-class XGBR(object):
-    """XGBOOST:
+class LGBMR(object):
+    """LGB<:
 
-    Computes the xgboost using XGBRegressor.
+    Computes the lgbm using LGBMRegressor.
 
 
     See also
     --------
-    https://xgboost.readthedocs.io/en/latest/python/python_api.html
+    https://lightgbm.readthedocs.io/en/latest/pythonapi/lightgbm.LGBMRegressor.html
 
 
     Attributes
