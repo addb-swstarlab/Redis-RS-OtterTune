@@ -23,5 +23,9 @@ for i in range(len(name)):
     RDB_knob['default'] = default[i]
     RDB_Knobs.append(RDB_knob)
 
+<<<<<<< HEAD
 with open('/home/capstone2201/data/RDB_knobs.json', 'w') as j: #수정
+=======
+with open('../data/RDB_knobs.json', 'w') as j: #수정
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
     json.dump(RDB_Knobs, j)

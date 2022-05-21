@@ -169,7 +169,9 @@ dmypy.json
 
 
 ### except some folders
-/data
+/data/configs
+/data/config_results
+/data/*.csv
 /memtier_benchmark
 
 *.pdf

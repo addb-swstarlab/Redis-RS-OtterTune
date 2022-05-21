@@ -32,7 +32,7 @@ def time_to_str(timestamp):
     """
     将时间戳转换成[YYYY-MM-DD HH:mm:ss]格式
     """
-    return datetime.datetime.\
+    return datetime.datetime. \
         fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
 
@@ -50,9 +50,10 @@ class Logger:
             self.log2file = False
 
     def _write_file(self, msg):
-        if self.log2file:
-            with open(self.log_file, 'a+') as f:
-                f.write(msg + '\n')
+        pass
+        # if self.log2file:
+        #     with open(self.log_file, 'a+') as f:
+        #         f.write(msg + '\n')
 
     def get_timestr(self):
         timestamp = get_timestamp()
@@ -62,24 +63,36 @@ class Logger:
     def warn(self, msg):
         msg = "%s[WARN] %s" % (self.get_timestr(), msg)
         self.logger.warning(msg)
+<<<<<<< HEAD
         #self._write_file(msg)
+=======
+        # self._write_file(msg)
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 
     def info(self, msg):
         msg = "%s[INFO] %s" % (self.get_timestr(), msg)
         self.logger.info(msg)
+<<<<<<< HEAD
         #self._write_file(msg)
+=======
+        self._write_file(msg)
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 
     def error(self, msg):
         msg = "%s[ERROR] %s" % (self.get_timestr(), msg)
         self.logger.error(msg)
+<<<<<<< HEAD
         #self._write_file(msg)
+=======
+        # self._write_file(msg)
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 
 
 def save_state_actions(state_action, filename):
-
     f = open(filename, 'wb')
     pickle.dump(state_action, f)
     f.close()
+
 
 def knobs_make_dict(knobs_path):
     knobs_path='/home/capstone2201/new-redis-sample-generation/redis-sample-generation/configfile' #수정
@@ -93,7 +106,11 @@ def knobs_make_dict(knobs_path):
         For mode selection knob, "yes" -> 1 , "no" -> 0
     '''
     config_files = os.listdir(knobs_path)
+<<<<<<< HEAD
     #print(config_files[1])
+=======
+    # print(config_files[1])
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
     dict_RDB = {}
     dict_AOF = {}
     RDB_datas = []
@@ -104,6 +121,7 @@ def knobs_make_dict(knobs_path):
     AOF_rowlabels = []
     ISAOF = 0
     ISRDB = 1
+<<<<<<< HEAD
     for m in range(198):
         flag = 0
         datas = []
@@ -112,9 +130,35 @@ def knobs_make_dict(knobs_path):
         f = open(knob_path, 'r')
         config_file = f.readlines()
         knobs_list = config_file[config_file.index('#rdb-save-incremental-fsync yes\n')+1:] #수정
+=======
+
+    config_nums = [_ for _ in range(1, 201)] + [_ for _ in range(10001, 10201)]
+
+    for m in config_nums:
+        flag = 0
+        datas = []
+        columns = []
+        knob_path = os.path.join(knobs_path, 'config' + str(m) + '.conf')
+        f = open(knob_path, 'r')
+        config_file = f.readlines()
+        knobs_list = config_file[config_file.index('#rdb-save-incremental-fsync yes\n') + 1:]
+
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
         cnt = 1
 
+        max_memory_policies = [
+            "volatile-lru",
+            "allkeys-lru",
+            "volatile-lfu",
+            "allkeys-lfu",
+            "volatile-random",
+            "allkeys-random",
+            "volatile-ttl",
+            "noeviction",
+        ]
+
         for l in knobs_list:
+<<<<<<< HEAD
             if l.split()[0] != 'save':               
                 col, d = l.split(' ',1) #수정
                 d = d.replace('\n','') #수정
@@ -131,12 +175,31 @@ def knobs_make_dict(knobs_path):
                     d = float(d[:-2])*1000 #수정
                 if d in ["volatile-lfu","volatile-random","volatile-lru","volatile-ttl","allkeys-lru","allkeys-lfu","allkeys-random"]: #수정
                     d = ["volatile-lfu","volatile-random","volatile-lru","volatile-ttl","allkeys-lru","allkeys-lfu","allkeys-random"].index(d) #수정
+=======
+
+            if l.split()[0] != 'save':
+                col, d = l.split(' ', 1)
+                d = d.replace('\n', '')
+                if d.isalpha():
+                    if d in ["no", "yes"]:
+                        d = ["no", "yes"].index(d)
+                    elif d in ["always", "everysec", "no"]:
+                        d = ["always", "everysec", "no"].index(d)
+                elif d.endswith("mb"):
+                    d = d[:-2]
+                elif d.endswith("gb"):
+                    d = float(d[:-2]) * 1000
+
+                if d in max_memory_policies:
+                    d = max_memory_policies.index(d)
+
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
                 datas.append(d)
                 columns.append(col)
             else:
                 col, d1, d2 = l.split()
-                columns.append(col+str(cnt)+"_sec")
-                columns.append(col+str(cnt)+"_changes")
+                columns.append(col + str(cnt) + "_sec")
+                columns.append(col + str(cnt) + "_changes")
                 datas.append(d1)
                 datas.append(d2)
                 cnt += 1
@@ -158,25 +221,31 @@ def knobs_make_dict(knobs_path):
             datas.append(5)
             columns.append("active-defrag-cycle-max")
             datas.append(75)
-        datas = list(map(int,datas))
+        datas = list(map(int, datas))
         if flag == ISRDB:
-    #         print('RDB')
+            #         print('RDB')
             RDB_datas.append(datas)
             RDB_columns.append(columns)
-            RDB_rowlabels.append(m+1)
-        if flag == ISAOF: 
-    #         print('AOF')
+            RDB_rowlabels.append(m + 1)
+        if flag == ISAOF:
+            #         print('AOF')
             AOF_datas.append(datas)
             AOF_columns.append(columns)
-            AOF_rowlabels.append(m+1)
+            AOF_rowlabels.append(m + 1)
 
     dict_RDB['data'] = np.array(RDB_datas)
     dict_RDB['rowlabels'] = np.array(RDB_rowlabels)
     dict_RDB['columnlabels'] = np.array(RDB_columns[0])
     dict_AOF['data'] = np.array(AOF_datas)
     dict_AOF['rowlabels'] = np.array(AOF_rowlabels)
+<<<<<<< HEAD
     #dict_AOF['columnlabels'] = np.array(AOF_columns[0])
+=======
+    dict_AOF['columnlabels'] = np.array(AOF_columns[0])
+
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
     return dict_RDB, dict_AOF
+
 
 def metrics_make_dict(pd_metrics, labels):
     '''
@@ -187,37 +256,47 @@ def metrics_make_dict(pd_metrics, labels):
                             'data'=array([[1,2,3,...], [2,3,4,...], ...[]])}
     '''
     # labels = RDB or AOF rowlabels
-    
+
     dict_metrics = {}
-    tmp_rowlabels = [_-1 for _ in labels]
- 
+    if labels[0] < 10000:
+        tmp_rowlabels = [_ - 2 for _ in labels]
+    else:
+        tmp_rowlabels = [_ - 10002 for _ in labels]
+
     pd_metrics = pd_metrics.iloc[tmp_rowlabels][:]
     nan_columns = pd_metrics.columns[pd_metrics.isnull().any()]
     pd_metrics = pd_metrics.drop(columns=nan_columns)
-    
+
     # for i in range(len(pd_metrics)):
     #     columns.append(pd_metrics.columns.to_list())
     dict_metrics['columnlabels'] = np.array(pd_metrics.columns)
-    #dict_metrics['columnlabels'] = np.array(itemgetter(*tmp_rowlabels)(dict_metrics['columnlabels'].tolist()))
+    # dict_metrics['columnlabels'] = np.array(itemgetter(*tmp_rowlabels)(dict_metrics['columnlabels'].tolist()))
     dict_metrics['rowlabels'] = np.array(labels)
     dict_metrics['data'] = np.array(pd_metrics.values)
-    
-    return dict_metrics
-    
 
-def load_metrics(m_path = ' ', labels = [], metrics=None, mode = ' '):
+    return dict_metrics
+
+
+def load_metrics(m_path=' ', labels=[], metrics=None, mode=' '):
     if mode == "internal":
         pd_metrics = pd.read_csv(m_path)
         pd_metrics, dict_le = metric_preprocess(pd_metrics)
         return metrics_make_dict(pd_metrics, labels), dict_le
     else:
         pd_metrics = pd.read_csv(m_path)
-        #pd_metrics, dict_le = metric_preprocess(pd_metrics)
+        # pd_metrics, dict_le = metric_preprocess(pd_metrics)
         return metrics_make_dict(pd_metrics[metrics], labels), None
 
+
 def load_knobs(k_path):
+<<<<<<< HEAD
     a,b=knobs_make_dict(k_path)
     return a,b
+=======
+    a, b = knobs_make_dict(k_path)
+    return a, b
+
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 
 def metric_preprocess(metrics):
     '''To invert for categorical internal metrics'''
@@ -231,31 +310,38 @@ def metric_preprocess(metrics):
             dict_le[col] = le
     return c_metrics, dict_le
 
+
 def get_ranked_knob_data(ranked_knobs, knob_data, top_k):
     '''
-        ranked_knobs: sorted knobs with ranking 
+        ranked_knobs: sorted knobs with ranking
                         ex. ['m3', 'm6', 'm2', ...]
         knob_data: dictionary data with keys(columnlabels, rowlabels, data)
-        top_k: A standard to split knobs 
+        top_k: A standard to split knobs
     '''
     ranked_knob_data = knob_data.copy()
     ranked_knob_data['columnlabels'] = np.array(ranked_knobs)
-        
+
     for i, knob in enumerate(ranked_knobs):
-        ranked_knob_data['data'][:,i] = knob_data['data'][:, list(knob_data['columnlabels']).index(knob)]
-    
+        ranked_knob_data['data'][:, i] = knob_data['data'][:, list(knob_data['columnlabels']).index(knob)]
+
     # pruning with top_k
-    ranked_knob_data['data'] = ranked_knob_data['data'][:,:top_k]
+    ranked_knob_data['data'] = ranked_knob_data['data'][:, :top_k]
     ranked_knob_data['columnlabels'] = ranked_knob_data['columnlabels'][:top_k]
 
-    #print('pruning data with ranking')
-    #print('Pruned Ranked knobs: ', ranked_knob_data['columnlabels'])
+    # print('pruning data with ranking')
+    # print('Pruned Ranked knobs: ', ranked_knob_data['columnlabels'])
 
     return ranked_knob_data
 
+
 def convert_dict_to_conf(rec_config, persistence):
+<<<<<<< HEAD
     f = open('/home/capstone2201/data/init_config.conf', 'r') #수정
     json_configs_path = '/home/capstone2201/data/'+persistence+'_knobs.json'
+=======
+    f = open('../data/init_config.conf', 'r')
+    json_configs_path = '../data/' + persistence + '_knobs.json'
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
     with open(json_configs_path, 'r') as j:
         json_configs = json.load(j)
 
@@ -267,8 +353,9 @@ def convert_dict_to_conf(rec_config, persistence):
     save_f = False
 
     categorical_knobs = ['appendonly', 'no-appendfsync-on-rewrite', 'aof-rewrite-incremental-fsync',
-                         'aof-use-rdb-preamble', 'rdbcompression', 'rdbchecksum', 
+                         'aof-use-rdb-preamble', 'rdbcompression', 'rdbchecksum',
                          'rdb-save-incremental-fsync', 'activedefrag', 'activerehashing']
+<<<<<<< HEAD
     
     #if persistence == "RDB":     #수정
     #    save_sec = []            #수정
@@ -276,23 +363,39 @@ def convert_dict_to_conf(rec_config, persistence):
     
     save_sec = [] #수정
     save_changes = [] #수정
+=======
+
+    # if persistence == "RDB":
+    #     save_sec = []
+    #     save_changes = []
+    save_sec = []
+    save_changes = []
+
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
     for k in dict_config.keys():
         if k in rec_config.keys():
             dict_config[k] = rec_config[k]
 
         dict_config[k] = round(dict_config[k])
-        
+
         if k in categorical_knobs:
             if k == "activerehashing":
-                if dict_config[k] == 0: dict_config[k] = 'no'
-                elif dict_config[k] >= 1 : dict_config[k] = 'yes'
+                if dict_config[k] == 0:
+                    dict_config[k] = 'no'
+                elif dict_config[k] >= 1:
+                    dict_config[k] = 'yes'
             else:
-                if dict_config[k] == 0: dict_config[k] = 'no'
-                elif dict_config[k] >= 1: dict_config[k] = 'yes'
+                if dict_config[k] == 0:
+                    dict_config[k] = 'no'
+                elif dict_config[k] >= 1:
+                    dict_config[k] = 'yes'
         if k == 'appendfsync':
-            if dict_config[k] == 0: dict_config[k] = 'always'
-            elif dict_config[k] == 1: dict_config[k] = 'everysec'
-            elif dict_config[k] >= 2: dict_config[k] = 'no'    
+            if dict_config[k] == 0:
+                dict_config[k] = 'always'
+            elif dict_config[k] == 1:
+                dict_config[k] = 'everysec'
+            elif dict_config[k] >= 2:
+                dict_config[k] = 'no'
 
         if 'changes' in k or 'sec' in k:
             save_f = True
@@ -301,15 +404,16 @@ def convert_dict_to_conf(rec_config, persistence):
             if 'changes' in k:
                 save_changes.append(dict_config[k])
             continue
-        
+
         if k == 'auto-aof-rewrite-min-size':
             dict_config[k] = str(dict_config[k]) + 'mb'
 
-        config_list.append(k+' '+str(dict_config[k])+'\n')
-    
+        config_list.append(k + ' ' + str(dict_config[k]) + '\n')
+
     if save_f:
         for s in range(len(save_sec)):
             config_list.append('save ' + str(save_sec[s]) + ' ' + str(save_changes[s]) + '\n')
+<<<<<<< HEAD
     i = 0
     PATH = '/home/capstone2201/data/config_results/{}'.format(persistence) #수정
     NAME = persistence+'_rec_config{}.conf'.format(i)
@@ -328,12 +432,42 @@ def config_exist(persistence):
         i+=1
         NAME = persistence+'_rec_config{}.conf'.format(i)
     return NAME[:-5]
+=======
 
+    PATH = '../data/config_results/{}'.format(persistence)
+    if not os.path.exists(PATH):
+        os.makedirs(PATH)
+
+    i = 0
+    NAME = persistence + '_rec_config{}.conf'.format(i)
+    while os.path.exists(os.path.join(PATH, NAME)):
+        i += 1
+        NAME = persistence + '_rec_config{}.conf'.format(i)
+
+    with open(os.path.join(PATH, NAME), 'w') as rec_f:
+        rec_f.writelines(config_list)
+
+
+def config_exist(persistence):
+    i = 0
+    PATH = '../data/config_results/{}'.format(persistence)
+    NAME = persistence + '_rec_config{}.conf'.format(i)
+    while os.path.exists(os.path.join(PATH, NAME)):
+        i += 1
+        NAME = persistence + '_rec_config{}.conf'.format(i)
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
+
+    return NAME[:-5]
 
 
 from sklearn.preprocessing import StandardScaler
+<<<<<<< HEAD
 ##경로수정
 sys.path.append('Redis-RS-OtterTune/')
+=======
+
+sys.path.append('../')
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 from models.util import DataUtil
 
 def process_training_data(target_knob, target_metric):
@@ -399,10 +533,10 @@ def process_training_data(target_knob, target_metric):
     # rowlabels_workload = rowlabels_workload[dups_filter]
 
     # Combine target & workload Xs for preprocessing
-    X_matrix = np.vstack([X_target,X_workload])
+    X_matrix = np.vstack([X_target, X_workload])
 
     dummy_encoder = None
-    
+
     # Scale to N(0, 1)
     X_scaler = StandardScaler()
     X_scaled = X_scaler.fit_transform(X_matrix)
@@ -441,17 +575,22 @@ def process_training_data(target_knob, target_metric):
     X_max = np.empty(X_scaled.shape[1])
     X_scaler_matrix = np.zeros([1, X_scaled.shape[1]])
 
+<<<<<<< HEAD
     with open(os.path.join("/home/capstone2201/data/RDB_knobs.json"), "r") as data: #수정
        session_knobs = json.load(data)
+=======
+    with open(os.path.join("/home/capstone2201/data/RDB_knobs.json"), "r") as data:  # 수정
+        session_knobs = json.load(data)
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 
     # Set min/max for knob values
-    #TODO : we make binary_index_set
+    # TODO : we make binary_index_set
     for i in range(X_scaled.shape[1]):
         col_min = X_scaled[:, i].min()
         col_max = X_scaled[:, i].max()
         for knob in session_knobs:
             if X_columnlabels[i] == knob["name"]:
-                if knob["minval"]==0:
+                if knob["minval"] == 0:
                     col_min = knob["minval"]
                     col_max = knob["maxval"]
                 else:

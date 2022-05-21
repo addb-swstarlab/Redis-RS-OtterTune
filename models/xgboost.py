@@ -1,5 +1,9 @@
 from xgboost import XGBRegressor
+<<<<<<< HEAD
 from lightgbm import LGBMRegressor
+=======
+from lightgbm import LGBMClassifier
+>>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
 class XGBR(object):
     """XGBOOST:
 
