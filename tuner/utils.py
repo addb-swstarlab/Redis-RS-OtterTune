@@ -294,7 +294,7 @@ def convert_dict_to_conf(rec_config, persistence):
     categorical_knobs = [
         'appendonly', 'no-appendfsync-on-rewrite', 'aof-rewrite-incremental-fsync',
         'aof-use-rdb-preamble', 'rdbcompression', 'rdbchecksum',
-        'rdb-save-incremental-fsync', 'activedefrag', 'activerehashing'
+        'rdb-save-incremental-fsync', 'activedefrag', 'activerehashing', 'dynamic-hz'
     ]
 
     # if persistence == "RDB":
