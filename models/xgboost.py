@@ -1,32 +1,21 @@
 from xgboost import XGBRegressor
-<<<<<<< HEAD
-from lightgbm import LGBMRegressor
-=======
-from lightgbm import LGBMClassifier
->>>>>>> 193a39b3947beb719ab7abb674ecc477fa7e9892
+
 class XGBR(object):
     """XGBOOST:
-
     Computes the xgboost using XGBRegressor.
-
-
     See also
     --------
     https://xgboost.readthedocs.io/en/latest/python/python_api.html
-
-
     Attributes
     ----------
     feature_labels_ : array, [n_features]
                       Labels for each of the features in X.
-
     rankings_ : array, [n_features]
              The average ranking of each feature across all target values.
     """
-    def __init__(self,n_estimators = 100, max_depth = 7, learning_rate = 0.08, booster='gbdt', colsample_bytree = 1):
+    def __init__(self,n_estimators = 100, max_depth = 7, learning_rate = 0.08, booster='gbtree', base_score = 0.5, colsample_bytree = 1):
         """
         Init xgboost model using XGBRegressor
-
         Parameters
         ----------
         n_estimators : int, default = 100
@@ -41,18 +30,17 @@ class XGBR(object):
                             The initial prediction score of all instances, global bias.                                                   
         colsample_bytree  : float, optional
                             Subsample ratio of columns when constructing each tree.
-
         ##TOBE:
         # can add more parameters                            
         ----------
         """
         self.feature_labels_ = None
         self.rankings_ = None
-        self.model = LGBMRegressor(
-                                 n_estimators = n_estimators,
+        self.model = XGBRegressor(n_estimators = n_estimators,
                                  max_depth = max_depth,
                                  learning_rate = learning_rate,
-                                 boosting_type = booster,
+                                 booster = booster,
+                                 base_score = base_score,
                                  colsample_bytree = colsample_bytree,
                                  )
 
@@ -63,15 +51,12 @@ class XGBR(object):
 
     def fit(self,X,y,feature_labels):
         """Computes the xgboost using XGBRegressor.
-
         Parameters
         ----------
         X : array-like, shape (n_samples, n_features)
             Training data (the independent variables).
-
         y : array-like, shape (n_samples, n_outputs)
             Training data (the output/target values).
-
         feature_labels : array-like, shape (n_features)
                          Labels for each of the features in X.
         Returns
@@ -93,7 +78,6 @@ class XGBR(object):
         """
         Compute feature_importance using trained XGBR model by rankings_.
         Sort by feature importance descending.
-
         Returns
         -------
         sorted features(knobs)
@@ -108,7 +92,6 @@ class XGBR(object):
         """
         Compute feature_importance using trained XGBR model by rankings_.
         Sort by feature importance descending.
-
         Returns
         -------
         sorted (features(knobs),importance)
