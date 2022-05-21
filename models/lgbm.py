@@ -30,10 +30,8 @@ class LGBMR(object):
                             Maximum tree depth for base learners.
         learning_rate  : float, optional
                             Boosting learning rate.
-        booster  : str, optional
-                            Specify which booster to use: gbtree, gblinear or dart.                            
-        base_score  : float, optional
-                            The initial prediction score of all instances, global bias.                                                   
+        boosting_type : str, optional
+                            Specify which booster to use: gbtree, gblinear or dart.                                                                          
         colsample_bytree  : float, optional
                             Subsample ratio of columns when constructing each tree.
 
