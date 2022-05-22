@@ -69,8 +69,15 @@ if __name__ == '__main__':
     # else:
     #     assert False, 'Choose workload write or readwrite'
 
-    internal_metrics_path = os.path.join(DATA_PATH, "result_rdb_internal.csv")
-    external_metrics_path = os.path.join(DATA_PATH, "result_rdb_external.csv")
+    internal_metrics_path, external_metrics_path = None, None
+
+    if opt.persistence == 'RDB':
+        internal_metrics_path = os.path.join(DATA_PATH, "result_rdb_internal_101.csv")
+        external_metrics_path = os.path.join(DATA_PATH, "result_rdb_external_101.csv")
+    elif opt.persistence == 'AOF':
+        internal_metrics_path = os.path.join(DATA_PATH, "result_aof_internal_101.csv")
+        external_metrics_path = os.path.join(DATA_PATH, "result_aof_external_101.csv")
+
 
     # logger.info("####################Target workload name is {}".format(opt.workload))
 
