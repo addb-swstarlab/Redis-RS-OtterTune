@@ -25,7 +25,7 @@ if __name__ == '__main__':
     parser.add_argument('--persistence', type=str, choices=["RDB", "AOF"], default='RDB',
                         help='Choose Persistant Methods')
     parser.add_argument("--db", type=str, choices=["redis", "rocksdb"], default='redis', help="DB type")
-    parser.add_argument("--rki", type=str, default='XGB', help="knob_identification mode")
+    parser.add_argument("--rki", type=str, default='LGBM', help="knob_identification mode")
     parser.add_argument("--gp", type=str, default="numpy")
 
     opt = parser.parse_args()
