@@ -47,13 +47,7 @@ class LGBMR(object):
                                  boosting_type = booster,
                                  colsample_bytree = colsample_bytree,
                                  )
-        self.model3 = LGBMRegressor(
-                                 n_estimators = n_estimators,
-                                 max_depth = max_depth,
-                                 learning_rate = learning_rate,
-                                 boosting_type = booster,
-                                 colsample_bytree = colsample_bytree,
-                                 )
+        
 
     def _reset(self):
         """Resets all attributes (erases the model)"""
@@ -79,8 +73,7 @@ class LGBMR(object):
         print(y)
         self.model1.fit(X,y[:,0])
         self.model2.fit(X,y[:,1])
-        self.model3.fit(X,y[:,2])
-        feature_importance = self.model1.feature_importances_+self.model2.feature_importances_+self.model3.feature_importances_
+        feature_importance = self.model1.feature_importances_+self.model2.feature_importances_
         self.rankings_ = []
         assert len(self.feature_labels_) == len(feature_importance)
         for label, imp in zip(self.feature_labels_,feature_importance):
