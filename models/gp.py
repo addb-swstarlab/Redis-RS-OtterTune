@@ -8,10 +8,13 @@ Created on Feb 18, 2018
 
 @author: Bohan Zhang
 '''
+import os ,sys
 import numpy as np
 from scipy.spatial.distance import cdist as ed
 from scipy import special
-
+#OANet import
+#아직 OANet이 수정 되지 않아서 주석처리함
+#from models.OANet.main import main
 
 class GPRResult(object):
     def __init__(self, ypreds=None, sigmas=None):
@@ -106,6 +109,7 @@ class GPRNP(object):
         return self
 
     def predict(self, X_test):
+        #genetic 사용해야할 부분
         self.check_fitted()
         if X_test.ndim != 2:
             raise Exception("X_test should have 2 dimensions! X_dim:{}"

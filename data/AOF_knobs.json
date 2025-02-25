@@ -1,0 +1,104 @@
+[
+    {
+        "name": "hash-max-ziplist-entries",
+        "minval": 100,
+        "maxval": 1500,
+        "default": 512
+    },
+    {
+        "name": "hash-max-ziplist-value",
+        "minval": 8,
+        "maxval": 256,
+        "default": 64
+    },
+    {
+        "name": "activerehashing",
+        "minval": 0,
+        "maxval": 1,
+        "default": 1
+    },
+    {
+        "name": "hz",
+        "minval": 1,
+        "maxval": 200,
+        "default": 10
+    },
+    {
+        "name": "dynamic-hz",
+        "minval": 0,
+        "maxval": 1,
+        "default": 1
+    },
+    {
+        "name": "appendonly",
+        "minval": 1,
+        "maxval": 1,
+        "default": 1
+    },
+    {
+        "name": "appendfsync",
+        "minval": 0,
+        "maxval": 2,
+        "default": 1
+    },
+    {
+        "name": "auto-aof-rewrite-percentage",
+        "minval": 50,
+        "maxval": 200,
+        "default": 100
+    },
+    {
+        "name": "auto-aof-rewrite-min-size",
+        "minval": 16,
+        "maxval": 256,
+        "default": 64
+    },
+    {
+        "name": "no-appendfsync-on-rewrite",
+        "minval": 0,
+        "maxval": 1,
+        "default": 0
+    },
+    {
+        "name": "aof-rewrite-incremental-fsync",
+        "minval": 0,
+        "maxval": 1,
+        "default": 1
+    },
+    {
+        "name": "aof-use-rdb-preamble",
+        "minval": 0,
+        "maxval": 1,
+        "default": 1
+    },
+    {
+        "name": "activedefrag",
+        "minval": 0,
+        "maxval": 1,
+        "default": 1
+    },
+    {
+        "name": "active-defrag-threshold-lower",
+        "minval": 5,
+        "maxval": 49,
+        "default": 10
+    },
+    {
+        "name": "active-defrag-threshold-upper",
+        "minval": 50,
+        "maxval": 100,
+        "default": 100
+    },
+    {
+        "name": "active-defrag-cycle-min",
+        "minval": 5,
+        "maxval": 49,
+        "default": 5
+    },
+    {
+        "name": "active-defrag-cycle-max",
+        "minval": 50,
+        "maxval": 100,
+        "default": 75
+    }
+]

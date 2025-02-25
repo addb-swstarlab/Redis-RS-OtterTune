@@ -1,9 +1,9 @@
-
 from models.cluster import KMeansClusters, create_kselection_model
 from models.factor_analysis import FactorAnalysis
 from models.preprocessing import (get_shuffle_indices, consolidate_columnlabels)
 from models.lasso import LassoPath
 from models.xgboost import XGBR
+from models.lgbm import LGBMR
 from models.util import DataUtil
 from models.rf import RFR
 
@@ -103,6 +103,13 @@ def run_knob_identification(knob_data,metric_data,mode, logger):
         feature_imp = xgb_model.get_ranked_importance()
         logger.info('feature importance')
         logger.info(feature_imp)
+    elif mode == "LGBM":
+        lgbm_model = LGBMR()
+        lgbm_model.fit(shuffled_knob_matrix, shuffled_metric_matrix,encoded_knob_columnlabels)
+        encoded_knobs = lgbm_model.get_ranked_knobs()
+        feature_imp = lgbm_model.get_ranked_importance()
+        logger.info('feature importance')
+        logger.info(feature_imp)
     elif mode == "RF":
         rf = RFR()
         rf.fit(shuffled_knob_matrix,shuffled_metric_matrix,encoded_knob_columnlabels)
@@ -200,7 +207,7 @@ def run_workload_mapping(knob_data, metric_data, target_knob, target_metric, par
 
 
 def configuration_recommendation(target_knob, target_metric, logger, gp_type='numpy', db_type='redis', data_type='RDB'):
-    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric, db_type, data_type)
+    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric, data_type)
 
     num_samples = params["NUM_SAMPLES"]
     X_samples = np.empty((num_samples, X_scaled.shape[1]))
